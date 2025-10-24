@@ -10,7 +10,8 @@ export const createProduct = async (token, form) => {
 };
 
 export const listProduct = async (count = 20) => {
-  return await axios.get(`http://localhost:3000/api/products/${count}`)
+  // ถูกต้อง: URL จะกลายเป็น /products?count=20
+  return axios.get(`http://localhost:3000/api/products?count=${count}`);
 };
 
 export const uploadFiles = async (token, body) => {
@@ -66,6 +67,9 @@ export const searchFilters = async (arg) => {
   return await axios.post(`http://localhost:3000/api/search/filters`, arg)
 };
 
-export const listProductsBy = async (sort,order,Limit) => {
-  return await axios.post(`http://localhost:3000/api/productby`, { sort, order, Limit })
+export const listProductsBy = async (sort, order, limit) => {
+  // URL จะเป็น /products?sort=price&order=desc&limit=5
+  return await axios.get(
+    `http://localhost:3000/api/products?sort=${sort}&order=${order}&limit=${limit}`
+  );
 };

@@ -109,7 +109,7 @@ const CartCard = () => {
             {total.toLocaleString()} บาท
           </p>
         </div>
-        <Link to="/checkout">
+        <Link to="/cart">
           <button className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-bold px-5 py-3 rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
             <CreditCard size={20} />
             ดำเนินการชำระเงิน

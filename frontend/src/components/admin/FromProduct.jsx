@@ -3,7 +3,7 @@ import useEcomStore from "../../store/EcomStore";
 import { createProduct, deleteProduct } from "../../api/product";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Uploadfile from "./Uploadfile"; // อย่าลืมปรับ Uploadfile ตามด้านล่าง
+import Uploadfile from "./Uploadfile";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import {
@@ -17,8 +17,7 @@ import {
   DollarSign,
   Hash,
   Box,
-  Image as ImageIcon, // Rename Image to ImageIcon to avoid conflict
-  AlertTriangle,
+  Image as ImageIcon,
 } from "lucide-react";
 
 // --- Skeleton Component สำหรับตอน Loading ---
@@ -31,7 +30,7 @@ const ProductFormSkeleton = () => (
       <div className="h-10 bg-gray-200 rounded-md"></div>
     </div>
     <div className="h-10 bg-gray-200 rounded-md"></div>
-    <div className="h-32 bg-gray-200 rounded-md"></div> {/* For uploadfile */}
+    <div className="h-32 bg-gray-200 rounded-md"></div>
     <div className="h-12 bg-gray-200 rounded-md"></div>
   </div>
 );
@@ -68,14 +67,13 @@ const ProductTableSkeleton = () => (
   </div>
 );
 
-
 const initialState = {
   title: "",
   description: "",
   price: "",
   quantity: "",
   categoryId: "",
-  images: [], // images ควรเป็น array ของ objects { public_id, url }
+  images: [],
 };
 
 const FromProduct = () => {
@@ -84,15 +82,14 @@ const FromProduct = () => {
   const categories = useEcomStore((state) => state.categories);
   const getProduct = useEcomStore((state) => state.getProduct);
   const products = useEcomStore((state) => state.products);
-  const setProducts = useEcomStore((state) => state.setProducts); // Assuming you have a setProducts in your store
 
   const [values, setValues] = useState(initialState);
   const [loadingInitialData, setLoadingInitialData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState(null);
 
-  const memoizedGetCategory = useCallback(() => getCategory(token), [token, getCategory]);
-  const memoizedGetProduct = useCallback(() => getProduct(token, 100), [token, getProduct]); // Pass token to getProduct
+  const memoizedGetCategory = useCallback(() => getCategory(), [getCategory]);
+  const memoizedGetProduct = useCallback(() => getProduct(100), [getProduct]);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -111,7 +108,6 @@ const FromProduct = () => {
     loadInitialData();
   }, [token, memoizedGetCategory, memoizedGetProduct]);
 
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setValues((prev) => ({
@@ -129,9 +125,9 @@ const FromProduct = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Submitting values:", values);
     setIsSubmitting(true);
 
-    // Basic validation
     if (!values.title.trim() || !values.description.trim() || !values.price || !values.quantity || !values.categoryId) {
         toast.error("กรุณากรอกข้อมูลสินค้าให้ครบถ้วน");
         setIsSubmitting(false);
@@ -151,14 +147,15 @@ const FromProduct = () => {
     try {
       const res = await createProduct(token, values);
       toast.success(`เพิ่มข้อมูล "${res.data.title}" สำเร็จ`);
-      setValues(initialState); // Clear form
-      memoizedGetProduct(); // Refresh product list
+      setValues(initialState);
+      await memoizedGetProduct();
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || "เกิดข้อผิดพลาดในการเพิ่มสินค้า");
     } finally {
       setIsSubmitting(false);
     }
+    
   };
 
   const handleDelete = async (id, title) => {
@@ -175,17 +172,13 @@ const FromProduct = () => {
 
     if (result.isConfirmed) {
       setDeletingProductId(id);
-      // Optimistic UI update
-      const originalProducts = [...products];
-      setProducts(products.filter((p) => p.id !== id));
-
       try {
         await deleteProduct(token, id);
         toast.success(`ลบสินค้า "${title}" สำเร็จ`);
+        await memoizedGetProduct();
       } catch (err) {
         console.error(err);
         toast.error(err.response?.data?.message || "เกิดข้อผิดพลาดในการลบสินค้า");
-        setProducts(originalProducts); // Rollback
       } finally {
         setDeletingProductId(null);
       }
@@ -212,17 +205,17 @@ const FromProduct = () => {
                   ชื่อสินค้า <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                    <Tag size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        id="title"
-                        name="title"
-                        value={values.title}
-                        onChange={handleChange}
-                        placeholder="กรอกชื่อสินค้า"
-                        className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        required
-                    />
+                  <Tag size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={values.title}
+                    onChange={handleChange}
+                    placeholder="กรอกชื่อสินค้า"
+                    className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                    required
+                  />
                 </div>
               </div>
 
@@ -231,17 +224,17 @@ const FromProduct = () => {
                   รายละเอียดสินค้า <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                    <AlignLeft size={20} className="absolute left-3 top-4 text-gray-400" />
-                    <textarea
-                        id="description"
-                        name="description"
-                        value={values.description}
-                        onChange={handleChange}
-                        placeholder="กรอกรายละเอียดสินค้า"
-                        rows="4"
-                        className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        required
-                    />
+                  <AlignLeft size={20} className="absolute left-3 top-4 text-gray-400" />
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={values.description}
+                    onChange={handleChange}
+                    placeholder="กรอกรายละเอียดสินค้า"
+                    rows="4"
+                    className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                    required
+                  />
                 </div>
               </div>
 
@@ -250,18 +243,18 @@ const FromProduct = () => {
                   ราคา (บาท) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                    <DollarSign size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="number"
-                        id="price"
-                        name="price"
-                        value={values.price}
-                        onChange={handleChange}
-                        placeholder="ราคา"
-                        min="0"
-                        className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        required
-                    />
+                  <DollarSign size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    value={values.price}
+                    onChange={handleChange}
+                    placeholder="ราคา"
+                    min="0"
+                    className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                    required
+                  />
                 </div>
               </div>
               
@@ -270,18 +263,18 @@ const FromProduct = () => {
                   จำนวนสินค้า <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                    <Hash size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="number"
-                        id="quantity"
-                        name="quantity"
-                        value={values.quantity}
-                        onChange={handleChange}
-                        placeholder="จำนวน"
-                        min="0"
-                        className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        required
-                    />
+                  <Hash size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="number"
+                    id="quantity"
+                    name="quantity"
+                    value={values.quantity}
+                    onChange={handleChange}
+                    placeholder="จำนวน"
+                    min="0"
+                    className="pl-10 w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                    required
+                  />
                 </div>
               </div>
 
@@ -290,27 +283,27 @@ const FromProduct = () => {
                   หมวดหมู่ <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                    <Box size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <select
-                        id="categoryId"
-                        name="categoryId"
-                        value={values.categoryId}
-                        onChange={handleChange}
-                        className="pl-10 w-full border border-gray-300 rounded-lg p-3 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                        required
-                    >
-                        <option value="" disabled>
-                            กรุณาเลือกหมวดหมู่สินค้า
-                        </option>
-                        {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
+                  <Box size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select
+                    id="categoryId"
+                    name="categoryId"
+                    value={values.categoryId}
+                    onChange={handleChange}
+                    className="pl-10 w-full border border-gray-300 rounded-lg p-3 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                    required
+                  >
+                    <option value="" disabled>
+                      กรุณาเลือกหมวดหมู่สินค้า
+                    </option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                  </div>
                 </div>
               </div>
 
@@ -318,7 +311,7 @@ const FromProduct = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     รูปภาพสินค้า <span className="text-red-500">*</span>
                 </label>
-                <Uploadfile values={values} setValues={handleImageChange} /> {/* ส่ง handleImageChange แทน setValues ตรงๆ */}
+                <Uploadfile values={values} setValues={handleImageChange} />
               </div>
 
               <div className="md:col-span-2 flex justify-end">

@@ -1,18 +1,19 @@
 import React, { useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import useEcomStore from "../../store/ecomStore";
-import { useNavigate, Link } from "react-router-dom";
+import useEcomStore from "../../store/EcomStore";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, LogIn, LoaderCircle } from "lucide-react";
+import { Mail, Lock, LogIn, LoaderCircle ,Eye, EyeOff } from "lucide-react";
 
-// เปลี่ยนเป็น URL จาก Unsplash เพื่อความเสถียร
+// URL รูปภาพจาก Unsplash
 const RESTAURANT_IMAGE_URL = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1974&auto=format&fit=crop";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ 1. Import useLocation เพื่อดูว่าผู้ใช้มาจากหน้าไหน
   const actionLogin = useEcomStore((state) => state.actionLogin);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -31,11 +32,17 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       const res = await actionLogin(formData);
-      const role = res.data.payload.role;
-      toast.success("เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับกลับมาค่ะ/ครับ");
+      const user = res.data.payload;
+      toast.success(`เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับคุณ ${user.username}`);
       
       setTimeout(() => {
-        roleRedirect(role);
+   
+        const from = location.state?.from?.pathname || null;
+        if (from) {
+          navigate(from, { replace: true });
+        } else {
+          roleRedirect(user.role);
+        }
       }, 1500);
 
     } catch (err) {
@@ -45,10 +52,15 @@ const Login = () => {
     }
   };
 
+  // 
   const roleRedirect = (role) => {
-    if (role === "admin") {
+    if (role === "ADMIN") {
       navigate("/admin");
-    } else {
+    } else if (role === "EMPLOYEE") {
+      navigate("/employee/tables"); // พาไปหน้าเลือกโต๊ะสำหรับพนักงาน
+    } else if (role === "COOK") {
+      navigate("/kitchen/orders"); // สมมติว่ามีหน้าสำหรับพ่อครัว
+    } else { // สำหรับ 'USER' และอื่นๆ
       navigate("/"); 
     }
   };
@@ -80,14 +92,14 @@ const Login = () => {
               {/* Username Field */}
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                  ชื่อผู้ใช้ / อีเมล
+                  ชื่อผู้ใช้
                 </label>
                 <div className="relative">
                     <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition"
                       type="text" name="username" id="username" value={formData.username} onChange={handleChange}
-                      placeholder="username or email" required
+                      placeholder="username" required
                     />
                 </div>
               </div>
@@ -100,10 +112,18 @@ const Login = () => {
                 <div className="relative">
                     <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition"
-                      type="password" name="password" id="password" value={formData.password} onChange={handleChange}
+                      className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition"
+                      type={showPassword ? "text" : "password"} name="password" id="password" value={formData.password} onChange={handleChange}
                       placeholder="••••••••" required
                     />
+                    <button
+                      type="button" // ป้องกันการ submit
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                 </div>
               </div>
 
@@ -148,6 +168,7 @@ const Login = () => {
       </motion.div>
     </div>
   );
-}; // <-- ✨ เพิ่มวงเล็บปีกกาปิด `}` ที่หายไปตรงนี้
+}; 
 
 export default Login;
+

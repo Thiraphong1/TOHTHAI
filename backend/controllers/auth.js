@@ -8,42 +8,51 @@ const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res) => {
   try {
-    // code register
-    const { username, password } = req.body;
-    // validation body
-    if(!username) {
-      console.log('Username is required');
-      return res.status(400).json({ message: 'Username is required' });
+    //  1. 
+    const { username, password, email, phone } = req.body;
+
+    // Validation พื้นฐาน (อาจจะ Validate เพิ่มเติม เช่น format email/phone)
+    if (!username || !password || !email) {
+      return res.status(400).json({ message: "กรุณากรอก Username, Password และ Email ให้ครบถ้วน" });
     }
-    if(!password) {
-      console.log('password is required');
-      return res.status(400).json({ message: 'password is required' });
-    }
-    // chack userใน database
-    const user = await prisma.user.findFirst({
-      where: { 
-        username : username
+
+    //  2. ตรวจสอบว่า Username หรือ Email ซ้ำหรือไม่
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { email: email }
+        ]
       }
-    })
-    console.log(user)
-    if(user) {
-      return res.status(400).json({ message: 'มีผู้ใช้งานนี้ในระบบแล้วนะค้าบโบร๋' });
+    });
+
+    if (existingUser) {
+      if (existingUser.username === username) {
+        return res.status(409).json({ message: "Username นี้ถูกใช้งานแล้ว" });
+      }
+      if (existingUser.email === email) {
+        return res.status(409).json({ message: "Email นี้ถูกใช้งานแล้ว" });
+      }
     }
-    // ขั้นที่ 3 hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
-    console.log(hashedPassword)
 
-    // ขั้นที่ 4 create user in database
-    await prisma.user.create({
-      data:{ username: username, password: hashedPassword}
-    })
+    // Hash Password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
+    // สร้าง User ใหม่
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        password: hashedPassword,
+        email,    
+        phone,    
+      },
+    });
 
+    res.status(201).json({ message: "สมัครสมาชิกสำเร็จ", user: { id: newUser.id, username: newUser.username, email: newUser.email } });
 
-    res.json({ message: 'สมัครได้แล้วนะฮ้าฟฟฟ' });
   } catch (err) {
-    // error
-    console.log(err);
+    console.error("Register error:", err);
     res.status(500).json({ message: "Server Error" });
   }
 };
@@ -98,6 +107,28 @@ exports.currentUser = async (req, res) => {
     res.json({ user })
   } catch (err) {
     // error
+    console.log(err);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+exports.currentEmployee = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'EMPLOYEE' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: "Access denied. Employees only." });
+    }
+    next();
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server Error" });
+  } 
+};
+exports.currentCook = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'COOK' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: "Access denied. Cooks only." });
+    }
+    next();
+  } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Server Error" });
   }

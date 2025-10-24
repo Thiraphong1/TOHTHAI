@@ -8,52 +8,102 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- Enums ---
+enum Role {
+  USER
+  ADMIN
+  EMPLOYEE
+  COOK
+}
+
+enum OrderStatus {
+  NOT_PROCESSED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  PENDING_CONFIRMATION
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// ✅ [เพิ่ม] Enum สำหรับวิธีการรับของ
+enum DeliveryMethod {
+  DELIVERY // จัดส่ง
+  TABLE    // รับที่โต๊ะ
+}
+
+
+// ------------------------------------
+// --- Models ---
+// ------------------------------------
+
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String?
-  name      String?
-  pictures  String?
-  role      String   @default("user")
-  enabled   Boolean  @default(true)
-  orders    Order[]
-  cart      Cart[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  password     String
+  name         String?
+  email        String?       @unique
+  phone        String?
+  pictures     String?
+  role         Role          @default(USER)
+  enabled      Boolean       @default(true)
+  orders       Order[]
+  cart         Cart?
+  reservations Reservation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // ✅ [เพิ่ม] Field ที่อยู่สำหรับจัดส่ง
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  postalCode   String?
 }
 
 model Product {
-  id          Int              @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   title       String
   description String?
   price       Float
-  sold        Int              @default(0)
+  sold        Int         @default(0)
   quantity    Int
-  orderItems  ProductonOrder[]
-  cartItems   ProductonCart[]
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
   images      Image[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  category    Category?        @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  category    Category?   @relation(fields: [categoryId], references: [id])
   categoryId  Int?
 }
 
 model Order {
-  id             Int              @id @default(autoincrement())
-  products       ProductonOrder[]
-  cartTotal      Float
-  orderStatus    String           @default("Not Processed")
-  orderedBy      User             @relation(fields: [orderedById], references: [id], onDelete: Cascade)
-  orderedById    Int
+  id              Int           @id @default(autoincrement())
+  products        OrderItem[]
+  cartTotal       Float
+  orderStatus     OrderStatus   @default(NOT_PROCESSED)
+  orderedBy       User          @relation(fields: [orderedById], references: [id], onDelete: Cascade)
+  orderedById     Int
   stripePaymentId String?
-  table          Table?           @relation(fields: [tableId], references: [id])
-  tableId        Int?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  paymentSlipUrl  String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // ✅ [เพิ่ม] ข้อมูลการรับของและโต๊ะ (คัดลอกจาก Cart ตอนสร้าง Order)
+  deliveryMethod  DeliveryMethod?
+  tableId         Int?
+  table           Table?        @relation(fields: [tableId], references: [id])
 }
 
-
-model ProductonOrder {
+model OrderItem {
   id        Int      @id @default(autoincrement())
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
@@ -74,20 +124,24 @@ model Category {
 }
 
 model Cart {
-  id          Int             @id @default(autoincrement())
-  products    ProductonCart[]
+  id          Int            @id @default(autoincrement())
+  products    CartItem[]
   cartTotal   Float
-  orderedBy   User            @relation(fields: [orderedById], references: [id], onDelete: Cascade)
-  orderedById Int
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  orderedBy   User           @relation(fields: [orderedById], references: [id], onDelete: Cascade)
+  orderedById Int            @unique
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // ✅ [เพิ่ม] Field วิธีการรับของ และ Relation ไปยังโต๊ะ
+  deliveryMethod DeliveryMethod?
+  tableId        Int?
+  table          Table?         @relation(fields: [tableId], references: [id])
 }
 
-model ProductonCart {
-  id     Int  @id @default(autoincrement())
-  cart   Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartId Int
-
+model CartItem {
+  id        Int     @id @default(autoincrement())
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    Int
   product   Product @relation(fields: [productId], references: [id])
   productId Int
   count     Int
@@ -105,12 +159,31 @@ model Image {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
 model Table {
-  id        Int      @id @default(autoincrement())
-  number    String   @unique          // หมายเลขโต๊ะ เช่น T1, T2
-  capacity  Int
-  status    String   @default("available") // available, occupied
-  orders    Order[]  // ความสัมพันธ์กับคำสั่งซื้อ
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int           @id @default(autoincrement())
+  number       String        @unique
+  capacity     Int
+  status       TableStatus   @default(AVAILABLE)
+  orders       Order[]
+  reservations Reservation[]
+  carts        Cart[]     // ✅ [เพิ่ม] Relation กลับไปที่ Cart (ถ้าต้องการ)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Reservation {
+  id                Int               @id @default(autoincrement())
+  reservationTime   DateTime
+  reservationEndTime DateTime?
+  numberOfGuests    Int
+  status            ReservationStatus @default(PENDING)
+  reservedBy        User              @relation(fields: [reservedById], references: [id], onDelete: Cascade)
+  reservedById      Int
+  table             Table             @relation(fields: [tableId], references: [id])
+  tableId           Int
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([tableId, reservationTime])
 }

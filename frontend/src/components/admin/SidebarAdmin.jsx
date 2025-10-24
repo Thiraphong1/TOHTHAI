@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext } from "react";
-import { NavLink, Link, useNavigate } from "react-router-dom"; // 1. Import useNavigate
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronsLeft,
   ChevronsRight,
+  Armchair, // ✅ 1. Import ไอคอนใหม่เข้ามา
 } from "lucide-react";
 import useEcomStore from "../../store/ecomStore";
 
@@ -21,12 +22,11 @@ const SidebarAdmin = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const user = useEcomStore((state) => state.user) || { username: 'Admin User' }; 
   const logout = useEcomStore((state) => state.logout);
-  const navigate = useNavigate(); // 2. ประกาศใช้งาน navigate
+  const navigate = useNavigate();
 
-  // --- 3. สร้างฟังก์ชันสำหรับจัดการการ Logout ---
   const handleLogout = () => {
-    logout(); // เรียกใช้ฟังก์ชัน logout จาก store
-    navigate('/login'); // นำทางไปยังหน้า login
+    logout();
+    navigate('/login');
   };
 
   const SidebarItem = ({ icon, text, to, alert }) => {
@@ -67,7 +67,7 @@ const SidebarAdmin = () => {
             bg-orange-100 text-orange-800 text-sm
             invisible opacity-20 -translate-x-3 transition-all
             group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
-        `}
+          `}
           >
             {text}
           </div>
@@ -82,8 +82,9 @@ const SidebarAdmin = () => {
     { icon: <Layers3 size={20} />, text: "Category", to: "category" },
     { icon: <Package size={20} />, text: "Product", to: "product" },
     { icon: <ClipboardList size={20} />, text: "Orders", to: "orders", alert: true },
-    { icon: <Warehouse size={20} />, text: "Storage", to: "storage" },
-    { icon: <UserCircle size={20} />, text: "Personal Info", to: "personal" },
+    // ✅ 2. เพิ่ม Object สำหรับเมนูใหม่ตรงนี้
+    { icon: <Armchair size={20} />, text: "Table", to: "tables" },
+    { icon: <ClipboardList size={20} />, text: "Manage Tables", to: "manage-tables" },
   ];
 
   return (
@@ -124,13 +125,12 @@ const SidebarAdmin = () => {
               className={`
               flex justify-between items-center
               overflow-hidden transition-all ${isCollapsed ? "w-0" : "w-52 ml-3"}
-          `}
+            `}
             >
               <div className="leading-4">
                 <h4 className="font-semibold">{user.username}</h4>
                 <span className="text-xs text-gray-600">{user.email || 'admin@example.com'}</span>
               </div>
-              {/* --- 4. เรียกใช้ handleLogout เมื่อกดปุ่ม --- */}
               <button onClick={handleLogout} className="p-2 hover:bg-gray-100 rounded-lg">
                 <LogOut size={20} />
               </button>

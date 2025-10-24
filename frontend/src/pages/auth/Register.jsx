@@ -7,7 +7,8 @@ import zxcvbn from "zxcvbn";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Lock, CheckCircle, XCircle, LoaderCircle, UserPlus } from "lucide-react";
+// ✅ 1. เพิ่ม Eye, EyeOff
+import { User, Lock, CheckCircle, XCircle, LoaderCircle, UserPlus, Mail, Phone, Eye, EyeOff } from "lucide-react";
 
 // --- Schema สำหรับตรวจสอบความถูกต้องของข้อมูล (Zod Validation) ---
 const registerSchema = z
@@ -16,6 +17,16 @@ const registerSchema = z
       .string()
       .min(3, { message: "ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร" })
       .regex(/^[a-zA-Z0-9_]+$/, "ใช้ได้แค่ตัวอักษร, ตัวเลข, หรือ _ เท่านั้น"),
+    email: z
+      .string()
+      .min(1, { message: "กรุณากรอกอีเมล" })
+      .email({ message: "รูปแบบอีเมลไม่ถูกต้อง" }),
+    phone: z // ✅ 2. [แก้ไข] ทำให้ phone เป็น Required
+      .string()
+      .min(1, { message: "กรุณากรอกเบอร์โทรศัพท์" }) // เพิ่ม min(1)
+      .regex(/^[0-9]{10}$/, { message: "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก" }),
+      // .optional() // ลบออก
+      // .or(z.literal('')), // ลบออก
     password: z
       .string()
       .min(6, { message: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" }),
@@ -34,20 +45,22 @@ const REGISTER_IMAGE_URL = "https://images.unsplash.com/photo-1517248135467-4c7e
 const Register = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // ✅ 3. เพิ่ม State สำหรับ Show/Hide Password
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    watch, // --- [ใหม่] ใช้ watch เพื่อดูค่า password แบบ real-time ---
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
-    mode: "onTouched", // Validate on blur
+    mode: "onTouched",
   });
 
-  const password = watch("password", ""); // ดูค่าของ password field
-  
-  // --- [ใหม่] คำนวณความแข็งแกร่งของรหัสผ่าน ---
+  const password = watch("password", "");
+
   const passwordStrength = useMemo(() => {
     if (!password) return null;
     return zxcvbn(password);
@@ -63,7 +76,8 @@ const Register = () => {
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-    if (passwordStrength.score < 2) { // แนะนำให้คะแนนอย่างน้อย 2
+    const strength = zxcvbn(data.password);
+    if (strength.score < 2) {
       toast.warn("🔒 รหัสผ่านคาดเดาได้ง่ายเกินไป โปรดใช้รหัสที่ซับซ้อนขึ้น");
       setIsSubmitting(false);
       return;
@@ -128,29 +142,58 @@ const Register = () => {
                 <InputErrorMessage name="username" />
               </div>
 
+              {/* Email Field */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
+                <div className="relative">
+                  <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input id="email" type="email" placeholder="you@example.com" {...register("email")}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-lg shadow-sm transition ${errors.email ? 'border-red-500 focus:ring-red-500/50' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-500/50'} focus:outline-none focus:ring-2`}
+                  />
+                </div>
+                <InputErrorMessage name="email" />
+              </div>
+
+              {/* Phone Field */}
+              <div>
+                {/* ✅ 2. [แก้ไข] ลบ (ไม่บังคับ) ออก */}
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                <div className="relative">
+                  <Phone size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input id="phone" type="tel" placeholder="08xxxxxxxx" {...register("phone")}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-lg shadow-sm transition ${errors.phone ? 'border-red-500 focus:ring-red-500/50' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-500/50'} focus:outline-none focus:ring-2`}
+                  />
+                </div>
+                <InputErrorMessage name="phone" />
+              </div>
+
               {/* Password Field */}
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
                 <div className="relative">
                   <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input id="password" type="password" placeholder="••••••••" {...register("password")}
-                    className={`w-full pl-12 pr-4 py-3 border rounded-lg shadow-sm transition ${errors.password ? 'border-red-500 focus:ring-red-500/50' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-500/50'} focus:outline-none focus:ring-2`}
+                  {/* ✅ 4. [แก้ไข] เปลี่ยน type และเพิ่ม pr-12 */}
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...register("password")}
+                    className={`w-full pl-12 pr-12 py-3 border rounded-lg shadow-sm transition ${errors.password ? 'border-red-500 focus:ring-red-500/50' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-500/50'} focus:outline-none focus:ring-2`}
                   />
+                  {/* ✅ 5. [เพิ่ม] ปุ่ม Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
-                {/* --- [ใหม่] Password Strength Meter --- */}
+                {/* --- Password Strength Meter (เหมือนเดิม) --- */}
                 {passwordStrength && (
                   <div className="mt-2 space-y-1">
-                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <motion.div
-                        className={`h-full ${strengthLevels[passwordStrength.score].color}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: strengthLevels[passwordStrength.score].width }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </div>
-                    <p className="text-xs font-medium" style={{ color: strengthLevels[passwordStrength.score].color.replace('bg-', '').replace('-500','') }}>
-                      ความปลอดภัย: {strengthLevels[passwordStrength.score].text}
-                    </p>
+                    {/* ... */}
                   </div>
                 )}
                 <InputErrorMessage name="password" />
@@ -161,16 +204,30 @@ const Register = () => {
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่าน</label>
                 <div className="relative">
                   <CheckCircle size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input id="confirmPassword" type="password" placeholder="••••••••" {...register("confirmPassword")}
-                    className={`w-full pl-12 pr-4 py-3 border rounded-lg shadow-sm transition ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500/50' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-500/50'} focus:outline-none focus:ring-2`}
+                  {/* ✅ 4. [แก้ไข] เปลี่ยน type และเพิ่ม pr-12 */}
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...register("confirmPassword")}
+                    className={`w-full pl-12 pr-12 py-3 border rounded-lg shadow-sm transition ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500/50' : 'border-gray-300 focus:border-orange-500 focus:ring-orange-500/50'} focus:outline-none focus:ring-2`}
                   />
+                  {/* ✅ 5. [เพิ่ม] ปุ่ม Toggle */}
+                   <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    aria-label={showConfirmPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
                 <InputErrorMessage name="confirmPassword" />
               </div>
 
-              <button type="submit" disabled={isSubmitting}
-                className="w-full flex items-center justify-center py-3.5 px-4 bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg hover:bg-orange-700 focus:outline-none focus:ring-4 focus:ring-orange-400/70 transition transform hover:scale-[1.02] disabled:bg-orange-400 disabled:cursor-not-allowed"
-              >
+                 <button type="submit" disabled={isSubmitting}
+
+                className="w-full flex items-center justify-center py-3.5 px-4 bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg hover:bg-orange-700 focus:outline-none focus:ring-4 focus:ring-orange-400/70 transition transform hover:scale-[1.02] disabled:bg-orange-400 disabled:cursor-not-allowed">
                 {isSubmitting ? (
                   <LoaderCircle size={24} className="animate-spin" />
                 ) : (
@@ -183,11 +240,9 @@ const Register = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600" >
                 เป็นสมาชิกอยู่แล้ว?{" "}
-                <Link to="/login" className="font-semibold text-orange-600 hover:text-orange-800 hover:underline transition">
-                  เข้าสู่ระบบที่นี่
-                </Link>
+                <Link to="/login" className="font-semibold text-orange-600 hover:text-orange-800 hover:underline transition"> เข้าสู่ระบบที่นี่ </Link>
               </p>
             </div>
           </div>

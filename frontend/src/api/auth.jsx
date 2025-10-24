@@ -16,4 +16,22 @@ const currentAdmin =async (token)=> {
     }
 )
 }
-export {currentUser, currentAdmin}
+const currentEmployee =async (token)=> {
+    return await axios.post('http://localhost:3000/api/current-employee',
+    {},{
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    }
+)
+}
+const currentCook =async (token)=> {
+    return await axios.post('http://localhost:3000/api/current-cook',
+    {},{
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    }
+)
+}
+export {currentUser, currentAdmin, currentEmployee,currentCook}

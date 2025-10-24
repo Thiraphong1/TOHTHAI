@@ -14,10 +14,10 @@ export const getListAllUser = async (token) => {
         }
     })
 }
-export const changeUserStatus = async (token, value) => {
-  return await axios.post(
+export const changeUserStatus = async (token, data) => {
+  return await axios.put(
     "http://localhost:3000/api/change-status",
-    value, // value = { id, enabled }
+    data, 
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -26,9 +26,9 @@ export const changeUserStatus = async (token, value) => {
   );
 };
 export const changeUserRole = async (token, data) => {
-  return await axios.post(
+  return await axios.put(
     `http://localhost:3000/api/change-role`,
-    data, // data = {id, role}
+    data, 
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -36,4 +36,31 @@ export const changeUserRole = async (token, data) => {
       },
     }
   );
+};
+export const getAllReservations = async (token) => {
+  return await axios.get('http://localhost:3000/api/reservations', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+export const updateReservationStatus = async (token, reservationId, status) => {
+  // status = "CONFIRMED" หรือ "CANCELLED"
+  return await axios.put(`http://localhost:3000/api/reservations/${reservationId}/status`, { status }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+export const getDashboardSummaryToday = async (token) => {
+  return await axios.get('http://localhost:3000/api/dashboard', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+export const getOrderTypeStatsToday = async (token) => {
+  return await axios.get('http://localhost:3000/api/statstoday', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+export const getTopSellingProducts = async (token, period = 'week', limit = 5) => {
+  // ส่ง period และ limit เป็น query params
+  return await axios.get(`http://localhost:3000/api/topselling?period=${period}&limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 };

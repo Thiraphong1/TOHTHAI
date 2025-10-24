@@ -1,11 +1,12 @@
 import React from 'react'
+import TableUser from '../components/card/TableUser'
 
-const table = () => {
+const Table = () => {
   return (
     <div>
-      
+      <TableUser />
     </div>
   )
 }
 
-export default table
+export default Table
