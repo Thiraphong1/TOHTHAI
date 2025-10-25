@@ -4,15 +4,10 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 // --- Import API Functions ---
 import { listCategory } from "../api/Category";
-
 import { listProduct, searchFilters } from "../api/product";
-
 import { createReservation as apiCreateReservation } from "../api/reservation";
-
 import { getAllReservations as apiGetAllReservations, updateReservationStatus as apiUpdateReservationStatus } from "../api/admin";
-
 import { getAllTables as apiGetAllTables } from "../api/table";
-
 const ecomStore = (set, get) => ({
   // --- Core States ---
   user: null,
@@ -47,11 +42,9 @@ const ecomStore = (set, get) => ({
     return res;
   },
 
-  // ✅ [เพิ่ม Action นี้] สำหรับอัปเดตข้อมูล User ใน Store โดยตรง
+  // [เพิ่ม Action นี้] สำหรับอัปเดตข้อมูล User ใน Store โดยตรง
   setUser: (userData) => {
     set((state) => ({
-        // ใช้ spread operator (...) เพื่อ merge ข้อมูล user ใหม่กับข้อมูลเดิม (ถ้ามี)
-        // และอัปเดตเฉพาะ field ที่ส่งมาใน userData
         user: { ...state.user, ...userData }
     }));
   },
@@ -68,7 +61,7 @@ const ecomStore = (set, get) => ({
           : item
       );
     } else {
-      updatedCart = [...carts, { ...product, count: 1 }];
+      updatedCart = [...carts, { ...product, count: 1, note: null }]; // ✅ เพิ่ม note: null เป็นค่าเริ่มต้น
     }
     set({ carts: updatedCart });
   },
@@ -89,6 +82,16 @@ const ecomStore = (set, get) => ({
   actionRemoveFromCart: (id) => {
     set((state) => ({ carts: state.carts.filter((c) => c.id !== id) }));
   },
+
+  // ✅ [เพิ่ม Action นี้] สำหรับอัปเดตหมายเหตุในตะกร้า
+  actionUpdateCartItemNote: (id, note) => {
+    set((state) => ({
+      carts: state.carts.map((item) =>
+        item.id === id ? { ...item, note: note || null } : item
+      ),
+    }));
+  },
+
   clearCart: () => {
     set({ carts: [] });
   },
@@ -121,12 +124,11 @@ const ecomStore = (set, get) => ({
 
   // --- New Actions for Reservation System ---
 
-  // (For User/Employee) Fetch all available tables
+  // (For User/Admin/Employee) Fetch all tables
   fetchTables: async () => {
     try {
       set(state => ({ loading: { ...state.loading, tables: true }, error: { ...state.error, tables: null } }));
-      // ✅ [ปรับปรุง] แก้ไข API call ให้ถูกต้อง (API นี้อาจจะต้องการ token)
-      const res = await apiGetAllTables(get().token);
+      const res = await apiGetAllTables(get().token); // ใช้ Token สำหรับ Admin/Employee
       set({ tables: res.data, loading: { ...get().loading, tables: false } });
     } catch (err) {
       console.error("Failed to fetch tables", err);

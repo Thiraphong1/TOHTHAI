@@ -58,16 +58,58 @@ exports.getAllReservations = async (req, res) => {
 
 // Admin อัปเดตสถานะการจอง (ยืนยัน/ยกเลิก)
 exports.updateReservationStatus = async (req, res) => {
-  try {
-    const reservationId = Number(req.params.id);
-    const { status } = req.body; // รับ 'CONFIRMED' หรือ 'CANCELLED'
+    try {
+        const reservationId = Number(req.params.id);
+        const { status } = req.body; // รับ 'CONFIRMED' หรือ 'CANCELLED'
 
-    const updatedReservation = await prisma.reservation.update({
-      where: { id: reservationId },
-      data: { status }
-    });
-    res.json({ message: "อัปเดตสถานะการจองสำเร็จ", reservation: updatedReservation });
-  } catch (err) { res.status(500).json({ message: "Server Error" }); }
+        const updatedReservation = await prisma.$transaction(async (tx) => {
+            
+            // 1. ดึงข้อมูลการจองปัจจุบัน
+            const reservation = await tx.reservation.findUnique({
+                where: { id: reservationId },
+                select: { tableId: true } // ต้องมี tableId
+            });
+
+            if (!reservation) {
+                throw new Error("ไม่พบรายการจองที่ต้องการอัปเดต");
+            }
+
+            // 2. อัปเดตสถานะการจอง
+            const newReservation = await tx.reservation.update({
+                where: { id: reservationId },
+                data: { status: status },
+                include: { table: true }
+            });
+
+            // 3. ✅ [NEW LOGIC] จัดการสถานะ Table (เฉพาะตอนยืนยัน/ยกเลิก)
+            if (newReservation.tableId) {
+                let newTableStatus = null;
+                
+                if (status === 'CONFIRMED') {
+                    // ถ้า Admin ยืนยัน -> ล็อกสถานะโต๊ะ ณ ปัจจุบันเป็น OCCUPIED
+                    newTableStatus = 'OCCUPIED';
+                } else if (status === 'CANCELLED') {
+                    // ถ้า Admin ยกเลิก -> ปลดล็อกสถานะโต๊ะกลับเป็น AVAILABLE
+                    newTableStatus = 'AVAILABLE';
+                }
+
+                if (newTableStatus) {
+                    await tx.table.update({
+                        where: { id: newReservation.tableId },
+                        data: { status: newTableStatus },
+                    });
+                }
+            }
+
+            return newReservation;
+        });
+
+        res.json({ message: 'อัปเดตสถานะการจองสำเร็จ', reservation: updatedReservation });
+    } catch (error) {
+        console.error('Error updating reservation status:', error);
+        // ... (จัดการ Error เหมือนเดิม) ...
+        res.status(500).json({ message: 'Server Error' });
+    }
 };
 exports.getDashboardSummaryToday = async (req, res) => {
     try {

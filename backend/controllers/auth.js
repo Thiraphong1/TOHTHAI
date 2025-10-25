@@ -3,7 +3,7 @@ const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const e = require('express');
 const jwt = require('jsonwebtoken');
-
+const nodemailer = require('nodemailer');
 
 
 exports.register = async (req, res) => {
@@ -66,12 +66,12 @@ exports.login = async (req, res) => {
       where: { username : username }  
     })
     if(!user || !user.enabled) {
-      return res.status(400).json({ message: 'ไม่มีผู้ใช้งานนี้ในระบบนะค้าบ' })
+      return res.status(400).json({ message: 'ไม่มีผู้ใช้งานนี้ในระบบนะครับ' })
     }
     // chack password ใน database
     const isMatch = await bcrypt.compare(password, user.password)
     if(!isMatch) {
-      return res.status(400).json({ message: 'รหัสผ่านไม่ถูกต้องค้าบ' })
+      return res.status(400).json({ message: 'รหัสผ่านไม่ถูกต้องครับ' })
     }
     //payload
     const payload = { 
@@ -132,4 +132,51 @@ exports.currentCook = async (req, res, next) => {
     console.log(err);
     res.status(500).json({ message: "Server Error" });
   }
+};
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        // 1. ค้นหา User ด้วย email
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            // ไม่ควรแจ้งว่าไม่พบอีเมล เพื่อป้องกันการแฮ็ก (ส่ง 400 แทน)
+            return res.status(400).json({ message: "ไม่พบผู้ใช้งานด้วยอีเมลนี้" }); 
+        }
+
+        // 2. สร้าง Password Reset Token (JWT, TTL สั้นๆ)
+        const passwordResetToken = jwt.sign({ id: user.id }, process.env.RESET_SECRET, { expiresIn: '15m' });
+        
+        // 3. (สำคัญ) ส่ง Link พร้อม Token ไปทางอีเมล (ต้องมี Nodemailer)
+        // console.log(`PASSWORD RESET LINK: ${process.env.CLIENT_URL}/reset-password?token=${passwordResetToken}`); 
+        res.json({ message: "ส่งลิงก์ตั้งรหัสผ่านใหม่ไปยังอีเมลของคุณแล้ว" });
+
+    } catch (err) {
+        console.error("Forgot Password Error:", err);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+exports.resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        // 1. ตรวจสอบ Token ว่าถูกต้องและยังไม่หมดอายุ
+        const decoded = jwt.verify(token, process.env.RESET_SECRET);
+        
+        // 2. Hash รหัสผ่านใหม่
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // 3. อัปเดตรหัสผ่าน
+        await prisma.user.update({
+            where: { id: decoded.id },
+            data: { password: hashedPassword }
+        });
+
+        res.json({ message: "ตั้งรหัสผ่านใหม่สำเร็จ กรุณาเข้าสู่ระบบ" });
+
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(400).json({ message: "ลิงก์หมดอายุแล้ว กรุณาลองใหม่" });
+        }
+        res.status(500).json({ message: "Server Error" });
+    }
 };

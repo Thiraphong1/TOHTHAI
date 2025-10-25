@@ -29,7 +29,7 @@ import CheckoutSuccess from "../components/CheckoutSuccess";
 import MOrder from "../pages/admin/MOrder";
 import TableAdmin from "../pages/admin/TableAdmin";
 import ManageTable from "../pages/admin/ManageTable";
-
+import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 // --- เพิ่ม Import สำหรับ Employee ---
 import ProtectRouteEmployee from "./ProtectRouteEmployee";
 import EmployeeLayout from "../layouts/EmployeeLayout";
@@ -54,6 +54,7 @@ const router = createBrowserRouter([
       { path: "checkout", element: <Checkout /> },
       { path: "menu", element: <Menu /> },
       { path: "cart", element: <Cart /> },
+      { path: "reset-password", element: <ResetPasswordPage /> }
     ],
   },
   {

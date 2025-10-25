@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 // สมมติว่าสร้าง listAllTables และ updateTableStatus ใน api/table.js แล้ว
 import { getAllTables, updateTableStatus } from '../../api/table'; 
 import useEcomStore from '../../store/ecomStore';
@@ -10,11 +10,18 @@ const ManageTables = () => {
   const [loading, setLoading] = useState(true);
   const token = useEcomStore(state => state.token);
 
+  // ✨ [ปรับปรุง] Logic การเรียงลำดับ
+  const sortTables = (data) => {
+    // ใช้ localeCompare สำหรับการเปรียบเทียบตัวอักษรและตัวเลข (เช่น T1, T2, T10)
+    return data.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' }));
+  };
+
   const fetchTables = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getAllTables(token);
-      setTables(res.data);
+      // ✅ [แก้ไข] เรียงลำดับข้อมูลทันทีที่ได้รับ
+      setTables(sortTables(res.data)); 
     } catch (error) {
       toast.error("ไม่สามารถโหลดข้อมูลโต๊ะได้");
     } finally {
@@ -33,13 +40,19 @@ const ManageTables = () => {
     try {
       await updateTableStatus(token, tableId, newStatus);
       toast.success("อัปเดตสถานะโต๊ะสำเร็จ");
-      // อัปเดต state ทันทีเพื่อ UX ที่ดี
-      setTables(currentTables => 
-        currentTables.map(t => t.id === tableId ? {...t, status: newStatus} : t)
-      );
-      // หรือจะ fetchTables() ใหม่ก็ได้ แต่จะช้ากว่าเล็กน้อย
+      
+      // ✅ [แก้ไข] อัปเดต State โดยไม่เรียก API ซ้ำ (Optimistic Update)
+      setTables(currentTables => {
+        const updatedList = currentTables.map(t => 
+          t.id === tableId ? {...t, status: newStatus} : t
+        );
+        // เรียงลำดับใหม่ (ถ้าจำเป็น แต่ส่วนใหญ่ไม่จำเป็นถ้าข้อมูลเดิมเรียงอยู่แล้ว)
+        return sortTables(updatedList); 
+      });
     } catch (error) {
       toast.error("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
+      // ในกรณี error ควรเรียก fetchTables() ซ้ำ เพื่อให้ข้อมูลที่แสดงผลถูกต้องตาม DB
+      fetchTables();
     }
   };
 
@@ -53,6 +66,7 @@ const ManageTables = () => {
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">จัดการสถานะโต๊ะปัจจุบัน</h1>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+        {/* โต๊ะถูก Map ตามลำดับที่เรียงแล้ว */}
         {tables.map(table => (
           <div
             key={table.id}

@@ -34,4 +34,10 @@ const currentCook =async (token)=> {
     }
 )
 }
+export const resetPassword = ({ token, newPassword }) => {
+    return axios.post('http://localhost:3000/api/reset-password', {
+        token: token,
+        newPassword: newPassword,
+    });
+};
 export {currentUser, currentAdmin, currentEmployee,currentCook}

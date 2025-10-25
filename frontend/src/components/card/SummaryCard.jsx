@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   LoaderCircle,
   Edit,
+  MessageSquare,
 } from "lucide-react";
 import {
   listUserCart,
@@ -296,7 +297,7 @@ const SummaryCard = () => {
                       </h3>
                       <p className="text-sm text-gray-500">
                         ค่าจัดส่ง {deliveryMethod === "DELIVERY" ? "40" : "0"}{" "}
-                        บาท
+                        บาท (ระยะทางไม่เกิน 2 กม. หาเกินคิดเพิ่ม กม.ละ 20 บาท)
                       </p>
                     </div>
                   </div>
@@ -551,6 +552,12 @@ const SummaryCard = () => {
                   <p className="font-semibold text-gray-700">
                     {((item.price || 0) * (item.count || 1)).toLocaleString()} ฿
                   </p>
+                  {item.note && (
+                    <div className="mt-2 ml-[calc(4rem+1rem)] flex items-start text-sm text-gray-600 bg-gray-50 p-2 rounded-md border border-gray-200">
+                      <MessageSquare size={14} className="flex-shrink-0 mr-2 mt-0.5 text-gray-500" />
+                      <span className="break-all"><strong>หมายเหตุ:</strong> {item.note}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

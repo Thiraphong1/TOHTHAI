@@ -1,95 +1,130 @@
 // controllers/reservation.js
 const prisma = require('../config/prisma');
 
-// ... (getAvailableTables อาจจะต้องปรับ หรือสร้างใหม่) ...
+const RESERVATION_DURATION_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง
+const OPEN_HOUR = 8; // 08:00 น.
+const CLOSE_HOUR = 18; // 18:00 น. (รับจองถึง 17:59 น.)
+const MAX_LEAD_TIME_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง
 
 exports.createReservation = async (req, res) => {
   try {
-    // 1. รับข้อมูล (เพิ่ม validation)
-    const { tableId, reservationTimeString, numberOfGuests } = req.body; // รับเป็น string เวลา เช่น "14:30"
+    const { tableId, reservationTimeString, numberOfGuests } = req.body;
     const userId = Number(req.user.id);
 
+    // 1. ตรวจสอบข้อมูลที่จำเป็น
     if (!tableId || !reservationTimeString || !numberOfGuests) {
-        return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+      return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
-
-    // 2. แปลงเวลาและตรวจสอบช่วงเวลาที่อนุญาต
+    
+    // 2. แปลงเวลาและตรวจสอบช่วงเวลาเปิดทำการ
     const [hours, minutes] = reservationTimeString.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes) || hours < 10 || hours >= 18) { // ตรวจสอบเวลา 10:00 - 17:59
-      return res.status(400).json({ message: "สามารถจองได้ระหว่างเวลา 10:00 - 17:59 เท่านั้น" });
+    if (isNaN(hours) || isNaN(minutes) || hours < OPEN_HOUR || hours >= CLOSE_HOUR) {
+      return res.status(400).json({ message: `สามารถจองได้ระหว่างเวลา ${OPEN_HOUR}:00 - ${CLOSE_HOUR - 1}:59 น. เท่านั้น` });
     }
 
-    // 3. ตรวจสอบว่ายังไม่เลยเวลาปิดรับจองของวัน
+    // 3. กำหนดเวลาที่ขอจองและเวลาปัจจุบัน
     const now = new Date();
-    const closingTime = new Date();
-    closingTime.setHours(18, 0, 0, 0); // ตั้งเวลาปิดเป็น 18:00:00.000 ของวันนี้
-    if (now >= closingTime) {
-      return res.status(400).json({ message: "ขออภัย ปิดรับการจองสำหรับวันนี้แล้ว (หลัง 18:00 น.)" });
+    
+    // 3.1 สร้าง DateTime object สำหรับวันนี้ + เวลาที่ขอ
+    const requestedTime = new Date();
+    requestedTime.setHours(hours, minutes, 0, 0);
+
+    // 3.2 คำนวณเวลาที่ช้าที่สุดที่จองได้ (ปัจจุบัน + 2 ชั่วโมง)
+    const latestBookableTime = new Date(now.getTime() + MAX_LEAD_TIME_MS); 
+    
+    // 3.3 คำนวณเวลาสิ้นสุดการจอง
+    const reservationEndTime = new Date(requestedTime.getTime() + RESERVATION_DURATION_MS);
+
+    // 4. ✅ [LOGIC ตรวจสอบเวลาใหม่]
+    
+    // 4.1 ต้องไม่เป็นเวลาในอดีต (ห้ามจองย้อนหลัง)
+    if (requestedTime < now) {
+         return res.status(400).json({ message: "ไม่สามารถจองในเวลาที่ผ่านมาแล้วได้" });
+    }
+    
+    // 4.2 ตรวจสอบเงื่อนไข "ไม่เกิน 2 ชั่วโมง" (Maximum Lead Time)
+    if (requestedTime > latestBookableTime) {
+      const latestBookableHours = latestBookableTime.toLocaleTimeString('th-TH', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+      });
+      return res.status(400).json({ 
+          message: `การจองต้องทำภายใน 2 ชั่วโมงนับจากเวลาปัจจุบันเท่านั้น เวลาที่ช้าที่สุดที่สามารถจองได้คือ ${latestBookableHours} น.`,
+      });
+    }
+    
+    // 4.3 ตรวจสอบว่าเลยเวลาปิดรับจองของวันไปแล้วหรือไม่
+    const closingTimeToday = new Date();
+    closingTimeToday.setHours(CLOSE_HOUR, 0, 0, 0); 
+    if (requestedTime >= closingTimeToday) {
+         return res.status(400).json({ message: `ไม่สามารถจองได้หลัง ${CLOSE_HOUR}:00 น.`,});
     }
 
-    // 4. สร้าง DateTime object สำหรับวันนี้ + เวลาที่ขอ
-    const requestedTime = new Date();
-    requestedTime.setHours(hours, minutes, 0, 0); // ตั้งเวลาตามที่ User ขอ *สำหรับวันนี้*
-
-    // 5. [สำคัญ] คำนวณเวลาสิ้นสุด (ยังคงแนะนำให้มี เพื่อเช็คซ้ำซ้อนได้แม่นยำ)
-    const reservationDurationMs = 2 * 60 * 60 * 1000; // สมมติจองทีละ 2 ชั่วโมง
-    const reservationEndTime = new Date(requestedTime.getTime() + reservationDurationMs);
-
-
+    // 5. ใช้ Transaction
     const reservation = await prisma.$transaction(async (tx) => {
-      // 6. ค้นหาโต๊ะ (เช็คความจุ)
-      const table = await tx.table.findUnique({ where: { id: Number(tableId) } });
-      if (!table) throw new Error("ไม่พบโต๊ะที่ต้องการจอง");
-      if (numberOfGuests > table.capacity) throw new Error(`โต๊ะนี้รองรับได้สูงสุด ${table.capacity} คน`);
+      // 5.1 ค้นหาโต๊ะ (เช็คความจุ)
+      const table = await tx.table.findUnique({
+        where: { id: Number(tableId) },
+      });
 
-      // 7. ✅ ตรวจสอบการจองซ้ำซ้อน *เฉพาะวันนี้* และ *ช่วงเวลาคาบเกี่ยว*
+      if (!table) {
+        throw new Error("ไม่พบโต๊ะที่ต้องการจอง");
+      }
+      if (numberOfGuests > table.capacity) {
+        throw new Error(`โต๊ะนี้รองรับได้สูงสุด ${table.capacity} คน`);
+      }
+      
+      // 5.2 ตรวจสอบการจองซ้ำซ้อน *เฉพาะวันนี้* และ *ช่วงเวลาคาบเกี่ยว*
       const conflictingReservation = await tx.reservation.findFirst({
         where: {
           tableId: Number(tableId),
-          status: { in: ['PENDING', 'CONFIRMED'] },
-          // เช็คว่าช่วงเวลาที่ขอ คาบเกี่ยวกับช่วงเวลาของการจองอื่น *ในวันเดียวกัน* หรือไม่
-          reservationTime: { lt: reservationEndTime }, // เวลาเริ่มจองเก่า < เวลาสิ้นสุดที่ขอ
-          reservationEndTime: { gt: requestedTime } // เวลาสิ้นสุดจองเก่า > เวลาเริ่มต้นที่ขอ
+          status: { in: ['PENDING', 'CONFIRMED'] }, // เช็คเฉพาะการจองที่ยัง Active
+          
+          // Logic การเช็คเวลาคาบเกี่ยว:
+          reservationTime: {
+            lt: reservationEndTime,
+          },
+          reservationEndTime: {
+            gt: requestedTime,
+          }
         },
       });
 
       if (conflictingReservation) {
-        throw new Error("ขออภัย โต๊ะนี้ถูกจองแล้วในช่วงเวลาดังกล่าวสำหรับวันนี้");
+        throw new Error("ขออภัย โต๊ะนี้ถูกจองแล้วในช่วงเวลาดังกล่าว กรุณาเลือกเวลาอื่น");
       }
 
-      // 8. สร้างการจอง (สถานะ PENDING หรือ CONFIRMED ก็ได้ แล้วแต่ระบบ)
+      // 5.3 สร้างการจอง
       const newReservation = await tx.reservation.create({
         data: {
           tableId: Number(tableId),
-          reservationTime: requestedTime, // เวลาเต็ม (วันนี้ + เวลาที่ขอ)
-          reservationEndTime: reservationEndTime, // เวลาสิ้นสุด
+          reservationTime: requestedTime,
+          reservationEndTime: reservationEndTime, // บันทึกเวลาสิ้นสุด
           numberOfGuests: Number(numberOfGuests),
           reservedById: userId,
-          status: 'CONFIRMED', // หรือ PENDING ถ้า Admin ต้องยืนยัน
+          status: 'PENDING', // ให้ Admin ยืนยัน
         }
       });
-
-      // 9. ❌ ไม่ต้องอัปเดต Table.status แล้ว
 
       return newReservation;
     });
 
-    res.status(201).json({ message: "จองโต๊ะสำเร็จ!", reservation });
+    res.status(201).json({ message: "ส่งคำขอจองโต๊ะสำเร็จ รอการยืนยัน", reservation });
 
   } catch (err) {
     console.error("Error creating reservation:", err);
-    if (err.message.includes("ไม่พบโต๊ะ") || err.message.includes("รองรับได้สูงสุด") || err.message.includes("ถูกจองแล้ว") || err.message.includes("สามารถจองได้") || err.message.includes("ปิดรับการจอง")) {
+    // ส่ง message ที่เราสร้างเองกลับไปให้ Frontend
+    if (err.message.includes("ไม่พบโต๊ะ") || err.message.includes("รองรับได้สูงสุด") || err.message.includes("ถูกจองแล้ว") || err.message.includes("สามารถจองได้") || err.message.includes("ปิดรับการจอง") || err.message.includes("ล่วงหน้าอย่างน้อย") || err.message.includes("เวลาที่ผ่านมาแล้ว")) {
       return res.status(400).json({ message: err.message });
+    }
+    // จัดการ Error P2002 (Unique constraint violation) กรณีจองเวลาซ้ำเป๊ะ
+    if (err.code === 'P2002') {
+        return res.status(409).json({ message: "คุณได้จองโต๊ะนี้ในเวลานี้ไปแล้ว" });
     }
     res.status(500).json({ message: "Server Error" });
   }
 };
-
-// --- ฟังก์ชันดึงโต๊ะที่ว่าง (ปรับปรุง) ---
-/**
- * @desc    (Public) ดึงข้อมูลโต๊ะทั้งหมด พร้อมบอกว่า *ตอนนี้* ว่างหรือไม่
- * ใช้สำหรับแสดงสถานะปัจจุบัน หรือให้พนักงานดูภาพรวม
- */
 exports.getTablesCurrentStatus = async (req, res) => {
     try {
         const now = new Date();
@@ -122,4 +157,16 @@ exports.getTablesCurrentStatus = async (req, res) => {
         console.error("Error in getTablesCurrentStatus:", err);
         res.status(500).json({ message: "Server Error" });
     }
+};
+exports.getAvailableTables = async (req, res) => {
+  try {
+    const tables = await prisma.table.findMany({
+      where: { status: 'AVAILABLE' }, // กรองเฉพาะโต๊ะที่เปิดให้บริการ (ไม่ปิดซ่อม)
+      orderBy: { number: 'asc' },
+    });
+    res.json(tables);
+  } catch (err) { 
+    console.error("Error in getAvailableTables:", err);
+    res.status(500).json({ message: "Server Error" }); 
+  }
 };

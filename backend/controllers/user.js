@@ -63,26 +63,26 @@ exports.changeRole = async (req, res) => {
 
 // --- Cart Management (User) ---
 
-// ✅ [แก้ไข] แก้ไข Logic การบันทึกตะกร้าให้เป็นการ "Upsert" (Update or Insert)
-// Function นี้จะใช้เมื่อ User กด "บันทึกตะกร้า" หรือมีการเปลี่ยนแปลงในตะกร้า
+
 exports.userCart = async (req, res) => {
   try {
-    const { cart } = req.body; // cart = [{id, count, price}, ...]
+    const { cart } = req.body; // cart = [{id, count, price, note}, ...]
     const userId = Number(req.user.id);
 
-    if (!cart || !Array.isArray(cart)) { // ตรวจสอบว่าเป็น Array
-      return res.status(400).json({ message: "Invalid cart data" });
+    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+   
+      await prisma.cart.deleteMany({ where: { orderedById: userId } });
+      return res.json({ ok: true, message: "Cart emptied", cart: null });
     }
 
-    // [ปรับปรุงประสิทธิภาพ] ดึงข้อมูลสินค้าทั้งหมดใน Query เดียว
     const productIds = cart.map(item => item.id);
     const productsInStock = await prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, quantity: true, title: true, price: true } // ดึงราคาล่าสุดมาด้วย
+      select: { id: true, quantity: true, title: true, price: true } 
     });
+    
     const productMap = new Map(productsInStock.map(p => [p.id, p]));
 
-    // ตรวจสอบจำนวนสินค้า และเตรียมข้อมูล items สำหรับ Prisma
     let productsData = [];
     let calculatedCartTotal = 0;
     for (const item of cart) {
@@ -93,40 +93,38 @@ exports.userCart = async (req, res) => {
       if (item.count > product.quantity) {
         return res.status(400).json({
           ok: false,
-          message: `ขออภัย. สินค้า "${product.title}" มีในสต็อกเพียง ${product.quantity} ชิ้น`,
+          message: `ขออภัย. สินค้า "${product.title}" มีในสต็อกเพียง ${product.quantity} ออเดอร์เท่านั้น`,
         });
       }
-      // ใช้ราคาล่าสุดจาก Database เพื่อความถูกต้อง
+      
       const currentPrice = product.price;
       productsData.push({
           productId: item.id,
           count: item.count,
-          price: currentPrice, // ใช้ราคาจาก DB
+          price: currentPrice,
+          note: item.note || null // ✅ [เพิ่ม] บันทึก note จากตะกร้า
       });
       calculatedCartTotal += currentPrice * item.count;
     }
 
     // ใช้ Upsert: ถ้ามี Cart อยู่แล้วให้อัปเดต, ถ้าไม่มีให้สร้างใหม่
     const savedCart = await prisma.cart.upsert({
-      where: { orderedById: userId }, // หา Cart จาก userId
-      update: { // ถ้าเจอ Cart เดิม
+      where: { orderedById: userId }, 
+      update: { 
         cartTotal: calculatedCartTotal,
         products: {
-          deleteMany: {}, // ลบ CartItem เก่าทั้งหมด
-          create: productsData, // สร้าง CartItem ใหม่
+          deleteMany: {}, 
+          create: productsData, // สร้าง CartItem ใหม่พร้อม note
         },
-        // deliveryMethod และ tableId จะถูกอัปเดตแยกผ่าน API อื่น
       },
-      create: { // ถ้าไม่เจอ Cart เดิม (User ใหม่ หรือเพิ่งสั่งของไป)
+      create: { 
         orderedById: userId,
         cartTotal: calculatedCartTotal,
         products: {
-          create: productsData,
+          create: productsData, // สร้าง CartItem ใหม่พร้อม note
         },
-        // อาจจะตั้ง deliveryMethod เริ่มต้นที่นี่ก็ได้ เช่น DELIVERY
-        // deliveryMethod: 'DELIVERY'
       },
-      include: { // ส่งข้อมูลที่จำเป็นกลับไป
+      include: { 
         products: { include: { product: { include: { images: true } } } },
         table: true
       }
@@ -140,17 +138,17 @@ exports.userCart = async (req, res) => {
   }
 }
 
-// ✅ [แก้ไข] getUserCart ให้ include deliveryMethod และ table ตาม Schema ล่าสุด
+
 exports.getUserCart = async (req, res) => {
   try {
     const cart = await prisma.cart.findFirst({
       where: { orderedById: Number(req.user.id) },
       include: {
-        table: true, // Include ข้อมูลโต๊ะ
-        products: {
+        table: true,
+        products: { // products คือ CartItem
           include: {
-            product: { // Include ข้อมูล Product หลัก
-              include: { images: true } // และรูปภาพของ Product นั้นๆ
+            product: { // product คือข้อมูลสินค้าจริง
+              include: { images: true } 
             },
           },
         },
@@ -158,17 +156,16 @@ exports.getUserCart = async (req, res) => {
     });
 
     if (!cart) {
-      // ส่งโครงสร้างข้อมูลพื้นฐานกลับไป แม้จะไม่มีตะกร้า
       return res.json({
         products: [],
         cartTotal: 0,
-        deliveryMethod: null, // ค่า default
+        deliveryMethod: null,
         tableId: null,
         table: null,
       });
     }
 
-    // ส่งข้อมูล cart ทั้งหมดกลับไป (รวม deliveryMethod และ table)
+    // ส่งข้อมูล cart ทั้งหมดกลับไป (ซึ่ง cart.products จะมี field 'note' อยู่แล้ว)
     res.json(cart);
 
   } catch (err) {
@@ -201,7 +198,7 @@ exports.emptyCart = async (req, res) => {
 
 // --- User Info & Address ---
 
-// ✅ [แก้ไข] ฟังก์ชันนี้ควรใช้สำหรับอัปเดตข้อมูลทั่วไป ไม่ใช่แค่ที่อยู่
+
 exports.saveInfo = async (req, res) => {
     try {
         const userId = Number(req.user.id);
@@ -228,12 +225,10 @@ exports.saveInfo = async (req, res) => {
     }
 }
 
-// ✅ [เพิ่ม] ฟังก์ชันสำหรับอัปเดตที่อยู่โดยเฉพาะ (ถ้าต้องการแยก API)
-// ถ้าไม่ต้องการแยก ก็ใช้ saveInfo อันบนได้เลย
 
 
 
-// ✅ [เพิ่ม] ฟังก์ชันสำหรับอัปเดตวิธีรับของ/โต๊ะในตะกร้า
+
 exports.updateCartDeliveryOption = async (req, res) => {
     try {
         const userId = Number(req.user.id);
@@ -270,18 +265,18 @@ exports.updateCartDeliveryOption = async (req, res) => {
     }
 };
 
-// --- Order Management (User) ---
 
-// ✅ [แก้ไข] saveOrder ให้คัดลอก deliveryMethod/tableId จาก Cart
 exports.saveOrder = async (req, res) => {
   try {
     const userId = Number(req.user.id);
 
     const order = await prisma.$transaction(async (tx) => {
-      // 1. ดึง cart (รวม deliveryMethod และ tableId)
+      // 1. ดึง cart (รวม products และ note)
       const userCart = await tx.cart.findFirst({
         where: { orderedById: userId },
-        include: { products: true },
+        include: { 
+            products: true 
+        },
       });
 
       if (!userCart || userCart.products.length === 0) {
@@ -304,7 +299,7 @@ exports.saveOrder = async (req, res) => {
           }
       }
 
-      // 2. สร้าง order (เพิ่ม deliveryMethod, tableId)
+      // 2. สร้าง order
       const newOrder = await tx.order.create({
         data: {
           products: { 
@@ -312,18 +307,18 @@ exports.saveOrder = async (req, res) => {
               productId: item.productId,
               count: item.count,
               price: item.price, 
+              note: item.note
             })),
           },
           orderedById: userId,
           cartTotal: userCart.cartTotal,
-          orderStatus: 'PENDING_CONFIRMATION', // สถานะเริ่มต้นรอ Admin ยืนยัน
-          // ✅ คัดลอกข้อมูลจาก Cart
+          orderStatus: 'PENDING_CONFIRMATION', 
           deliveryMethod: userCart.deliveryMethod, 
           tableId: userCart.tableId, 
         },
       });
 
-      // 3. ลดจำนวนสินค้าในสต็อก และเพิ่มยอดขาย
+      // 3. ลดจำนวนสินค้าในสต็อก
       const updateStockPromises = userCart.products.map((item) =>
         tx.product.update({
           where: { id: item.productId },

@@ -70,7 +70,7 @@ exports.read = async (req, res) => {
   }
 };
 
-// ✅ [แก้ไข] ทำให้ฟังก์ชันยืดหยุ่นและปลอดภัยขึ้น
+
 exports.update = async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
@@ -177,7 +177,6 @@ exports.remove = async (req, res) => {
 // --- Listing & Searching ---
 // ------------------------------------
 
-// ✅ [ปรับปรุง] เปลี่ยนมาใช้ req.query.limit ซึ่งเป็นมาตรฐานสากล
 exports.list = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit || 100); // รับค่าจาก query string และใส่ค่า default
@@ -207,7 +206,7 @@ exports.listsall = async (req, res) => {
   }
 };
 
-// ✅ [ปรับปรุง] เปลี่ยนมาใช้ req.query ซึ่งเป็นมาตรฐานสากลสำหรับ GET request
+
 exports.listby = async (req, res) => {
   try {
     const { sort = 'createdAt', order = 'desc', limit = 10 } = req.query; // รับค่าจาก query string

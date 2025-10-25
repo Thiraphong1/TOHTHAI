@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAvailableTables, createReservation } from '../../api/reservation';
-import useEcomStore from '../../store/ecomStore';
+// ตรวจสอบ Path: ควรมาจาก src/api/reservation.js
+import { getAvailableTables, createReservation } from '../../api/reservation'; 
+import useEcomStore from '../../store/ecomStore'; // ตรวจสอบ Path
 import { toast } from 'react-toastify';
-import { Armchair, XCircle, CheckCircle, LoaderCircle, Calendar, Users, Clock } from 'lucide-react'; // เพิ่ม Clock icon
+// ✅ Import Icons ที่จำเป็นทั้งหมดสำหรับ UI และผังร้าน
+import { Armchair, XCircle, CheckCircle, LoaderCircle, Users, Clock, Square, Utensils, DoorOpen, Toilet, MessageSquare } from 'lucide-react'; 
+
+// Logic การเรียงลำดับโต๊ะตามหมายเลข (T1, T2, T10)
+const sortTables = (data) => {
+    return data.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' }));
+};
 
 const TableUser = () => {
   const [tables, setTables] = useState([]);
@@ -13,43 +20,43 @@ const TableUser = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // State สำหรับ Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
-  // ✅ 2. [แก้ไข] เปลี่ยนชื่อ state ให้สื่อถึงการเลือก "เวลา"
   const [selectedTime, setSelectedTime] = useState(''); 
   const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchTables();
-  }, []);
-
+  // --- Fetch Tables ---
   const fetchTables = async () => {
     try {
       setLoading(true);
-      console.log("ดึงข้อมูลโต๊ะที่ว่าง...");
-      // ✅ 1. [แก้ไข] เรียกใช้ฟังก์ชันที่ถูกต้อง
       const res = await getAvailableTables(); 
+      
       if (Array.isArray(res.data)) {
-        setTables(res.data);
+        setTables(sortTables(res.data)); 
       } else {
         setTables([]);
       }
     } catch (error) {
       toast.error("ไม่สามารถโหลดข้อมูลโต๊ะได้");
+      setTables([]);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchTables();
+  }, []); // ทำให้ทำงานแค่ครั้งเดียว
+
   const handleTableSelect = (table) => {
-    if (table.status !== 'AVAILABLE') return;
+    // ⚠️ ถ้า Backend ส่งโต๊ะที่ถูกจองแล้วมา (status: OCCUPIED) จะถูกบล็อกที่นี่
+    if (table.status !== 'AVAILABLE') return; 
 
     if (token) {
       setSelectedTable(table);
       setNumberOfGuests(table.capacity);
-      setSelectedTime(''); // เคลียร์เวลาที่เลือกไว้ก่อนหน้า
+      setSelectedTime(''); 
       setIsModalOpen(true);
     } else {
       toast.info("กรุณาเข้าสู่ระบบก่อนทำการจองโต๊ะ");
@@ -64,35 +71,38 @@ const TableUser = () => {
     setNumberOfGuests(1);
   };
 
-  // ✅ 3. [แก้ไข] ฟังก์ชันสำหรับส่งข้อมูลการจอง
   const handleSubmitReservation = async () => {
-    if (!selectedTime || numberOfGuests < 1) { // เช็ค selectedTime แทน reservationTime
+    if (!selectedTime || numberOfGuests < 1) {
       return toast.error("กรุณากรอกข้อมูลการจองให้ครบถ้วน");
     }
     if (numberOfGuests > selectedTable.capacity) {
       return toast.warn(`โต๊ะนี้รองรับได้สูงสุด ${selectedTable.capacity} คน`);
     }
 
-    // [เพิ่ม] ตรวจสอบช่วงเวลาที่อนุญาต (Client-side validation)
     const [hours] = selectedTime.split(':').map(Number);
-     if (hours < 10 || hours >= 18) {
-       return toast.error("สามารถจองได้ระหว่างเวลา 10:00 - 17:59 เท่านั้น");
-     }
+    
+    if (hours < 8 || hours >= 17) {
+        return toast.error("สามารถจองได้ระหว่างเวลา 08:00 - 17:00 เท่านั้น");
+    }
 
     setIsSubmitting(true);
     try {
-      // ✅ ส่ง reservationTimeString แทน reservationTime
+      // สร้าง DateTime ISO String โดยใช้ 'วันนี้' + 'เวลาที่เลือก'
+      // ส่ง reservationTimeString ไปให้ Backend เช็ค
       const reservationData = {
         tableId: selectedTable.id,
-        reservationTimeString: selectedTime, 
+        reservationTimeString: selectedTime,
         numberOfGuests: Number(numberOfGuests),
       };
-      await createReservation(token, reservationData);
+      
+      await createReservation(token, reservationData); 
+      
       toast.success(`ส่งคำขอจองโต๊ะ ${selectedTable.number} เวลา ${selectedTime} สำเร็จ!`);
       handleCloseModal();
       fetchTables(); // โหลดข้อมูลโต๊ะใหม่
     } catch (error) {
-      toast.error(error.response?.data?.message || "เกิดข้อผิดพลาดในการจอง");
+      const errorMessage = error.response?.data?.message || "เกิดข้อผิดพลาดในการจอง";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -106,46 +116,103 @@ const TableUser = () => {
     );
   }
 
-  return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">จองโต๊ะสำหรับวันนี้</h1>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-        {tables.map(table => (
-          <div
-            key={table.id}
-            onClick={() => handleTableSelect(table)}
-            className={`p-4 border-2 rounded-lg text-center transition-transform transform hover:scale-105 ${
-              table.status === 'AVAILABLE' ? 'border-green-500 bg-green-50 hover:shadow-lg cursor-pointer' : 'border-red-300 bg-red-50 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            <Armchair size={48} className={`mx-auto ${table.status === 'AVAILABLE' ? 'text-green-600' : 'text-red-400'}`} />
-            <p className="font-bold text-xl mt-2">{table.number}</p>
-            <p className="text-sm text-gray-500">ที่นั่ง: {table.capacity}</p>
-            {table.status === 'AVAILABLE' ? (
-              <span className="flex items-center justify-center mt-1 text-green-600 text-sm"><CheckCircle size={16} className="mr-1" /> ว่าง</span>
-            ) : (
-              <span className="flex items-center justify-center mt-1 text-red-400 text-sm"><XCircle size={16} className="mr-1" /> ไม่ว่าง</span>
-            )}
-          </div>
-        ))}
-      </div>
+  // จัดการกรณีไม่มีโต๊ะว่างเลย
+  if (tables.length === 0) {
+    return (
+        <div className="p-4 sm:p-8 max-w-6xl mx-auto text-center">
+             <h1 className="text-3xl font-bold mb-6 text-gray-800">จองโต๊ะสำหรับวันนี้ เปิดเวลา 10:00-18:00</h1>
+             <div className="bg-white p-10 rounded-lg shadow-md">
+                <Armchair size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-xl text-gray-600">ขออภัย, ขณะนี้ไม่มีโต๊ะว่างสำหรับจอง</p>
+                <p className="text-gray-500">กรุณาลองใหม่อีกครั้งในภายหลัง</p>
+             </div>
+        </div>
+    );
+  }
 
+  return (
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">จองโต๊ะสำหรับวันนี้ เปิดเวลา 10:00-18:00</h1>
+      
+      {/* ✅ โครงสร้าง Floor Plan หลัก */}
+      <div className="relative w-full aspect-[4/3] bg-gray-200 border-8 border-gray-400 rounded-lg shadow-2xl p-4">
+        
+        {/* --- โซน 1: องค์ประกอบคงที่ (Fixed Elements) --- */}
+
+        {/* 1. ประตูทางเข้า (ด้านล่างขวา) */}
+        <div className="absolute bottom-0 right-0 w-20 h-10 bg-orange-600 text-white flex items-center justify-center rounded-tl-lg shadow-inner z-10 cursor-default">
+            <DoorOpen size={20} />
+        </div>
+        <p className="absolute bottom-10 right-0 text-xs text-gray-600 font-semibold transform -rotate-90">ทางเข้ามาร้าน</p>
+
+        {/* 2. เวที (ด้านบน) */}
+        <div className="absolute top-0 left-0 w-full h-16 bg-purple-700 text-white flex items-center justify-center rounded-t-lg shadow-lg">
+            <Square size={24} className="mr-2" /> 
+            <span className="font-bold text-lg">เวทีหลัก (STAGE)</span>
+        </div>
+
+        {/* 3. ห้องครัว (ด้านล่างซ้าย) */}
+        <div className="absolute bottom-0 left-0 w-1/3 h-16 bg-gray-800 text-white flex items-center justify-center rounded-tr-lg shadow-lg">
+            <Utensils size={20} className="mr-2" />
+            <span className="font-semibold text-sm">ห้องครัว</span>
+        </div>
+
+        {/* 4. ห้องน้ำ (ด้านซ้าย) */}
+        <div className="absolute left-0 top-1/4 transform -translate-y-1/2 flex flex-col gap-1 z-10">
+            <div className="w-16 h-16 bg-blue-500 text-white flex flex-col items-center justify-center rounded-r-lg shadow-md cursor-default">
+                <Toilet size={20} />
+                <span className="text-xs">ชาย</span>
+            </div>
+            <div className="w-16 h-16 bg-pink-500 text-white flex flex-col items-center justify-center rounded-r-lg shadow-md cursor-default">
+                <Toilet size={20} />
+                <span className="text-xs">หญิง</span>
+            </div>
+        </div>
+        
+        {/* --- โซน 2: พื้นที่วางโต๊ะ (Dynamic Table Area) --- */}
+        <div className="absolute inset-0 pt-16 pb-16 pl-16 pr-24 flex items-start justify-center">
+             
+            {/* Grid สำหรับวางโต๊ะ (จำลองตำแหน่งหลัก) */}
+            <div className="w-full h-full grid grid-cols-6 grid-rows-3 gap-8 p-4"> 
+                {tables.map((table) => (
+                    <div
+                        key={table.id}
+                        onClick={() => handleTableSelect(table)}
+                        className={`p-4 border-2 rounded-lg text-center transition-transform transform hover:scale-105 cursor-pointer shadow-md flex flex-col justify-center items-center ${
+                            table.status === 'AVAILABLE' ? 'border-green-500 bg-green-50 hover:shadow-xl' : 'border-red-300 bg-red-50 text-gray-400 cursor-not-allowed'
+                        }`}
+                    >
+                        <Armchair size={36} className={`mx-auto ${table.status === 'AVAILABLE' ? 'text-green-600' : 'text-red-400'}`} />
+                        <p className="font-bold text-base mt-2">{table.number}</p>
+                        <p className="text-sm text-gray-500">จุ: {table.capacity}</p>
+                        {table.status === 'AVAILABLE' ? (
+                          <span className="flex items-center justify-center mt-1 text-green-600 text-xs"><CheckCircle size={14} className="mr-1" /> ว่าง</span>
+                        ) : (
+                          <span className="flex items-center justify-center mt-1 text-red-400 text-xs"><XCircle size={14} className="mr-1" /> ไม่ว่าง</span>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+        </div>
+      </div>
+      
+      {/* --- Modal (เหมือนเดิม) --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-8 w-full max-w-md animate-fade-in-up">
             <h2 className="text-2xl font-bold mb-4">ยืนยันการจองโต๊ะ {selectedTable?.number}</h2>
             <div className="space-y-4">
               <div>
-                {/* ✅ 2. [แก้ไข] เปลี่ยน Input เป็น type="time" */}
-                <label className="block text-sm font-medium text-gray-700 mb-1">เวลาที่ต้องการจอง (10:00 - 17:59)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">เวลาที่สามารถจองได้ (08:00 - 17:00)</label>
                 <div className="relative">
                   <Clock size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input 
                     type="time" 
                     value={selectedTime} 
                     onChange={e => setSelectedTime(e.target.value)} 
-                    min="10:00" 
-                    max="17:59" 
+                    min="08:00" 
+                    max="17:00" 
                     className="pl-10 w-full border border-gray-300 rounded-lg p-3"
                   />
                 </div> 

@@ -111,6 +111,7 @@ model OrderItem {
   orderId   Int
   count     Int
   price     Float
+  note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -146,6 +147,7 @@ model CartItem {
   productId Int
   count     Int
   price     Float
+  note      String?
 }
 
 model Image {
