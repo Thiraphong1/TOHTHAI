@@ -1,22 +1,22 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { getOrdersAdmin } from "../../api/admin"; // ตรวจสอบ Path ให้ถูกต้อง
-import useEcomStore from "../../store/ecomStore"; // ตรวจสอบ Path ให้ถูกต้อง
-// import { get } from "lodash"; //lodash ไม่ได้ถูกใช้งาน ลบออกได้
-import { format, formatDistanceToNow } from "date-fns";
+// ตรวจสอบ Path: ควรมาจาก src/api/admin.js
+import { getOrdersAdmin } from "../../api/admin"; 
+import useEcomStore from "../../store/ecomStore"; 
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { th } from "date-fns/locale";
 import {
   ShoppingBag,
-  CircleDollarSign, // ยังคง import ไว้เผื่อใช้ในอนาคต
-  Truck, // ยังคง import ไว้เผื่อใช้ในอนาคต
+  CircleDollarSign,
   Search,
   AlertTriangle,
-  ClipboardList, // ใช้สำหรับ Summary Card ที่เหลือ
+  ClipboardList,
+  Calendar, // สำหรับ header group
+  DollarSign, // สำหรับแสดงรายรับ
 } from "lucide-react";
-// ไม่ต้อง import Toastify CSS ถ้าไม่ได้ใช้ toast ในหน้านี้โดยตรง
+import { toast } from "react-toastify";
 
 // --- Helper Components ---
 
-// SummaryCard Component (เหมือนเดิม)
 const SummaryCard = ({ icon, title, value, color, loading }) => (
   <div className={`p-6 rounded-xl shadow-lg flex items-center gap-5 bg-gradient-to-br ${color}`}>
     {loading ? (
@@ -27,8 +27,8 @@ const SummaryCard = ({ icon, title, value, color, loading }) => (
     <div>
       {loading ? (
         <>
-          <div className="h-4 bg-white/30 rounded w-24 mb-2"></div>
-          <div className="h-7 bg-white/30 rounded w-16"></div>
+          <div className="h-4 bg-white/30 rounded w-24 mb-2 animate-pulse"></div>
+          <div className="h-7 bg-white/30 rounded w-16 animate-pulse"></div>
         </>
       ) : (
         <>
@@ -40,7 +40,6 @@ const SummaryCard = ({ icon, title, value, color, loading }) => (
   </div>
 );
 
-// OrderTableSkeleton Component (เหมือนเดิม)
 const OrderTableSkeleton = () => (
     <tbody>
       {Array.from({ length: 5 }).map((_, i) => (
@@ -55,15 +54,46 @@ const OrderTableSkeleton = () => (
     </tbody>
 );
 
-// statusMap ยังคงใช้สำหรับแสดงผลในตาราง
+// statusMap (เพิ่มสถานะใหม่)
 const statusMap = {
     NOT_PROCESSED: { text: 'ยังไม่ดำเนินการ', color: 'bg-gray-100 text-gray-800' },
     PENDING_CONFIRMATION: { text: 'รอตรวจสอบ', color: 'bg-yellow-100 text-yellow-800' },
     PROCESSING: { text: 'กำลังเตรียม', color: 'bg-blue-100 text-blue-800' },
     COMPLETED: { text: 'เสร็จสิ้น', color: 'bg-green-100 text-green-800' },
     CANCELLED: { text: 'ยกเลิก', color: 'bg-red-100 text-red-800' },
-    // เพิ่มสถานะอื่นๆ ตามที่คุณมีใน Enum
 };
+
+// --- Logic สำหรับ Grouping ---
+
+const formatDateHeader = (dateString) => {
+    const date = new Date(dateString);
+    if (isToday(date)) return "วันนี้";
+    if (isYesterday(date)) return "เมื่อวาน";
+    return format(date, "EEEE, d MMMM yyyy", { locale: th });
+};
+
+// ✅ Logic การจัดกลุ่มและคำนวณรายรับรายวัน
+const groupOrdersByDateAndCalculateRevenue = (orders) => {
+    return orders.reduce((groups, order) => {
+        // ต้องมั่นใจว่า Order object มี field 'createdAt'
+        if (!order.createdAt) return groups;
+
+        const dateKey = format(new Date(order.createdAt), 'yyyy-MM-dd');
+        
+        if (!groups[dateKey]) {
+            groups[dateKey] = { orders: [], totalRevenue: 0 };
+        }
+        groups[dateKey].orders.push(order);
+        
+        // คำนวณรายรับ: เฉพาะ Order ที่เสร็จสิ้น, รอตรวจสอบ, หรือกำลังเตรียม
+        if (['COMPLETED', 'PENDING_CONFIRMATION', 'PROCESSING'].includes(order.orderStatus)) {
+            groups[dateKey].totalRevenue += order.cartTotal || 0;
+        }
+
+        return groups;
+    }, {});
+};
+
 
 const ManageOrder = () => {
   const token = useEcomStore((state) => state.token);
@@ -71,20 +101,21 @@ const ManageOrder = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
-  // ❌ ลบ state statusFilter ออก
-  // const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getOrdersAdmin(token); // ❗️ ต้องสร้าง API Function นี้ใน src/api/admin.js
-      // ✅ [ปรับปรุง] กรองข้อมูล null/undefined ที่อาจทำให้ Error ตอนแสดงผล
+      const res = await getOrdersAdmin(token);
+      // Backend ควรส่งข้อมูล Order พร้อม Include orderedBy มาให้
       const validOrders = res.data?.filter(order => order && order.id && order.createdAt) || [];
+
+      // เรียงลำดับตามเวลาสร้าง (ล่าสุดมาก่อน)
       setOrders(validOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch (err) {
       setError("ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้ โปรดลองอีกครั้ง");
       console.error("Fetch Orders Error:", err);
+      toast.error("ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้");
     } finally {
       setLoading(false);
     }
@@ -94,23 +125,27 @@ const ManageOrder = () => {
     if(token) fetchOrders();
   }, [token, fetchOrders]);
   
-  // ✅ [แก้ไข] เอา statusFilter ออกจากการกรอง
+  // กรองตามคำค้นหา
   const filteredOrders = useMemo(() => {
-    if (!search) return orders; // ถ้าไม่มีคำค้นหา แสดงทั้งหมด
+    if (!search) return orders; 
     const searchTerm = search.toLowerCase();
     return orders.filter(order => {
-        // ค้นหาจาก ID (แปลงเป็น String) หรือ Username (ถ้ามี)
         const matchesId = String(order.id).includes(searchTerm);
         const matchesUser = order.orderedBy?.username?.toLowerCase().includes(searchTerm);
         return matchesId || matchesUser;
     });
   }, [orders, search]);
   
-  // ✅ [แก้ไข] คำนวณแค่ totalOrders
+  // จัดกลุ่มข้อมูลที่ถูกกรองแล้วและคำนวณรายรับรายวัน
+  const groupedOrders = useMemo(() => {
+      return groupOrdersByDateAndCalculateRevenue(filteredOrders);
+  }, [filteredOrders]);
+
+
   const summaryData = useMemo(() => {
-    if (loading) return { totalOrders: '...' }; // แสดง ... ตอนโหลด
+    if (loading) return { totalOrders: '...' }; 
     return {
-        totalOrders: orders.length.toLocaleString(), // แปลงเป็น string ที่มี comma
+        totalOrders: orders.length.toLocaleString(), 
     };
   }, [orders, loading]);
 
@@ -123,10 +158,9 @@ const ManageOrder = () => {
             <h1 className="text-4xl font-extrabold text-gray-800">จัดการคำสั่งซื้อ</h1>
         </div>
 
-        {/* --- Summary Cards --- */}
-        {/* ✅ [แก้ไข] เหลือแค่ Card เดียว และปรับ Layout */}
+        {/* --- Summary Cards (เหลือ Card เดียว) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <div className="md:col-span-1 lg:col-span-1"> {/* กำหนดให้แสดงแค่ 1 card */}
+            <div className="md:col-span-1 lg:col-span-1">
                 <SummaryCard
                   icon={<ClipboardList size={28} className="text-white" />}
                   title="คำสั่งซื้อทั้งหมด"
@@ -135,13 +169,11 @@ const ManageOrder = () => {
                   loading={loading}
                 />
             </div>
-            {/* ❌ ลบ Card รายรับ และ รอจัดส่ง ออก */}
         </div>
 
         {/* --- Search --- */}
-        {/* ✅ [แก้ไข] เอา Filter ออก เหลือแค่ Search */}
         <div className="bg-white p-6 rounded-xl shadow-lg mb-8">
-            <div className="relative"> {/* ไม่ต้องใช้ Grid แล้ว */}
+            <div className="relative"> 
                 <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -151,7 +183,6 @@ const ManageOrder = () => {
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
                 />
             </div>
-            {/* ❌ ลบ Select Dropdown ของ Status ออก */}
         </div>
         
         {/* --- Orders Table --- */}
@@ -166,9 +197,9 @@ const ManageOrder = () => {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">วันที่สั่ง</th>
               </tr>
             </thead>
-            {/* Loading State */}
+            
+            {/* Loading/Error/Empty State (จัดการการแสดงผล) */}
             {loading ? <OrderTableSkeleton /> : 
-             /* Error State */
              error ? (
                 <tbody>
                   <tr>
@@ -180,7 +211,6 @@ const ManageOrder = () => {
                   </tr>
                 </tbody>
              ) : 
-             /* Empty State */
              filteredOrders.length === 0 ? (
                 <tbody>
                   <tr>
@@ -194,33 +224,52 @@ const ManageOrder = () => {
                   </tr>
                 </tbody>
              ) : (
-             /* Data State */
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => {
-                  // ✅ [ปรับปรุง] เพิ่ม Default ถ้าไม่เจอ status หรือ orderedBy
-                  const statusInfo = statusMap[order.orderStatus] || { text: order.orderStatus || 'N/A', color: 'bg-gray-100 text-gray-800' };
-                  const username = order.orderedBy?.username || "ไม่ระบุ";
-                  
-                  return (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
-                        #{order.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{username}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-semibold text-green-600">
-                          ฿{order.cartTotal?.toLocaleString() || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${statusInfo.color}`}>
-                              {statusInfo.text}
-                          </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600" title={format(new Date(order.createdAt), "dd/MM/yyyy HH:mm")}>
-                          {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: th })}
-                      </td>
-                    </tr>
-                  );
-                })}
+             /* Data State (Grouped by Date) */
+             <tbody className="bg-white divide-y divide-gray-200">
+                {Object.keys(groupedOrders).map(dateKey => (
+                    <React.Fragment key={dateKey}>
+                        {/* --- Header แสดงวันที่ และยอดรวม --- */}
+                        <tr className="bg-gray-200 sticky top-0 shadow-sm border-t border-gray-300">
+                            <td colSpan={5} className="px-6 py-3 text-left text-sm font-extrabold text-gray-800 flex justify-between items-center">
+                                <span className="flex items-center gap-2">
+                                    <Calendar size={18}/>
+                                    {formatDateHeader(dateKey)} ({groupedOrders[dateKey].orders.length} ออเดอร์)
+                                </span>
+                                {/* ✅ แสดงรายรับรวมของวันนั้นๆ */}
+                                <span className="text-lg font-extrabold text-green-700 flex items-center gap-1">
+                                    <DollarSign size={20} />
+                                    ฿{groupedOrders[dateKey].totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </td>
+                        </tr>
+
+                        {/* --- Loop แสดง Order ในวันนั้นๆ --- */}
+                        {groupedOrders[dateKey].orders.map((order) => {
+                            const statusInfo = statusMap[order.orderStatus] || { text: order.orderStatus || 'N/A', color: 'bg-gray-100 text-gray-800' };
+                            const username = order.orderedBy?.username || "ไม่ระบุ";
+                            
+                            return (
+                                <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                                        #{order.id}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{username}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-semibold text-green-600">
+                                        ฿{order.cartTotal?.toLocaleString() || 0}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${statusInfo.color}`}>
+                                            {statusInfo.text}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600" title={format(new Date(order.createdAt), "dd/MM/yyyy HH:mm")}>
+                                        {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: th })}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </React.Fragment>
+                ))}
               </tbody>
             )}
           </table>

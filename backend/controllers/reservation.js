@@ -3,7 +3,7 @@ const prisma = require('../config/prisma');
 
 const RESERVATION_DURATION_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง
 const OPEN_HOUR = 8; // 08:00 น.
-const CLOSE_HOUR = 18; // 18:00 น. (รับจองถึง 17:59 น.)
+const CLOSE_HOUR = 17; // 17:00 น.
 const MAX_LEAD_TIME_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง
 
 exports.createReservation = async (req, res) => {

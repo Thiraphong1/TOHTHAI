@@ -1,22 +1,52 @@
 const prisma = require('../config/prisma');
+const formatDateKey = (date) => {
+    // แปลงเป็น ISO String แล้วตัดเอาเฉพาะวันที่ (YYYY-MM-DD)
+    return date.toISOString().split('T')[0];
+};
 
 exports.getOrderAdmin = async (req, res) => {
   try {
-    // ดึงข้อมูลคำสั่งซื้อทั้งหมด หรือกรองตามสถานะ
     const orders = await prisma.order.findMany({
       orderBy: {
         createdAt: 'desc',
       },
       include: {
-        products: true, // สินค้าที่เกี่ยวข้องกับคำสั่งซื้อ
-        orderedBy: true, // ข้อมูลของผู้สั่งซื้อ
+        // ✅ ดึงข้อมูลลูกค้า: เอาแค่ username (เพื่อแสดงในตาราง)
+        orderedBy: {
+          select: { username: true, email: true, phone: true }
+        },
+        // ✅ ดึงข้อมูล OrderItem (เพื่อใช้ในการตรวจสอบรายละเอียด/Note ในอนาคต)
+        products: {
+            include: {
+                product: {
+                    select: { title: true } // ดึงเฉพาะชื่อสินค้า
+                }
+            }
+        },
       },
     });
 
-    res.json(orders);
+    // ✅ [คำนวณ] เพิ่ม orderDateKey และ isRevenue (สำหรับ Grouping และ Summary ใน Frontend)
+    const ordersWithProcessedData = orders.map(order => {
+        // 1. สร้าง Date Key
+        const dateKey = formatDateKey(order.createdAt);
+        
+        // 2. กำหนด Logic สำหรับนับเป็นรายรับ (สมมติ: นับทุกสถานะที่ไม่ได้ถูกยกเลิก)
+        const isRevenueStatus = ['COMPLETED', 'PENDING_CONFIRMATION', 'PROCESSING'].includes(order.orderStatus);
+
+        return {
+            ...order,
+            // เพิ่ม field สำหรับ Grouping และ Summary
+            orderDateKey: dateKey,
+            isRevenue: isRevenueStatus, // ใช้สำหรับคำนวณรายรับใน Frontend
+        };
+    });
+
+    res.json(ordersWithProcessedData);
+    
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server Error" });
+    console.error("Error fetching admin orders:", err);
+    res.status(500).json({ message: "Server Error fetching orders" });
   }
 };
 

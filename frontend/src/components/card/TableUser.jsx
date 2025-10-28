@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-// ตรวจสอบ Path: ควรมาจาก src/api/reservation.js
 import { getAvailableTables, createReservation } from '../../api/reservation'; 
-import useEcomStore from '../../store/ecomStore'; // ตรวจสอบ Path
+import useEcomStore from '../../store/ecomStore'; 
 import { toast } from 'react-toastify';
-// ✅ Import Icons ที่จำเป็นทั้งหมดสำหรับ UI และผังร้าน
 import { Armchair, XCircle, CheckCircle, LoaderCircle, Users, Clock, Square, Utensils, DoorOpen, Toilet, MessageSquare } from 'lucide-react'; 
 
 // Logic การเรียงลำดับโต๊ะตามหมายเลข (T1, T2, T10)
@@ -50,7 +48,6 @@ const TableUser = () => {
   }, []); // ทำให้ทำงานแค่ครั้งเดียว
 
   const handleTableSelect = (table) => {
-    // ⚠️ ถ้า Backend ส่งโต๊ะที่ถูกจองแล้วมา (status: OCCUPIED) จะถูกบล็อกที่นี่
     if (table.status !== 'AVAILABLE') return; 
 
     if (token) {
@@ -87,8 +84,7 @@ const TableUser = () => {
 
     setIsSubmitting(true);
     try {
-      // สร้าง DateTime ISO String โดยใช้ 'วันนี้' + 'เวลาที่เลือก'
-      // ส่ง reservationTimeString ไปให้ Backend เช็ค
+
       const reservationData = {
         tableId: selectedTable.id,
         reservationTimeString: selectedTime,

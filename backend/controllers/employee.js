@@ -1,8 +1,11 @@
 const prisma = require('../config/prisma');
 const cloudinary = require('cloudinary').v2;
 
+// กำหนด Cloudinary Config ไว้ที่ด้านบน (สมมติว่าคุณมี)
+// cloudinary.config({ ... }); 
+
 /**
- * @desc    สร้าง Order โดยพนักงาน (พร้อมแนบสลิป)
+ * @desc    สร้าง Order โดยพนักงาน (สำหรับลูกค้า Walk-in/ที่โต๊ะ)
  * @route   POST /api/employee/order
  * @access  Private (Employee, Admin)
  */
@@ -10,10 +13,9 @@ exports.saveOrderByEmployee = async (req, res) => {
   try {
     // 1. รับข้อมูลจาก request
     const { cart, tableId, paymentSlipBase64 } = req.body;
-    const userId = Number(req.user.id); // id ของพนักงานที่ login อยู่
+    const userId = Number(req.user.id);
 
     // 2. ตรวจสอบข้อมูลเบื้องต้น
-    // (อนุญาตให้ paymentSlipBase64 เป็น null ได้ ถ้าจ่ายเงินสด)
     if (!cart || !Array.isArray(cart) || cart.length === 0) {
       return res.status(400).json({ message: "ข้อมูลตะกร้าสินค้าไม่ถูกต้อง" });
     }
@@ -23,40 +25,39 @@ exports.saveOrderByEmployee = async (req, res) => {
       
       let paymentSlipUrl = null;
       let orderTableId = tableId ? Number(tableId) : null;
+      let deliveryMethod = tableId ? 'TABLE' : 'DELIVERY'; // กำหนดวิธีการรับของ
 
-      // 3.1 [แก้ไข] ตรวจสอบและอัปเดตสถานะโต๊ะ (ถ้ามีการระบุ tableId)
+      // 3.1 [แก้ไข] ตรวจสอบและจัดการสถานะโต๊ะ (ถ้ามีการระบุ tableId)
       if (orderTableId) {
         const table = await tx.table.findUnique({
           where: { id: orderTableId },
         });
+        
         if (!table) {
           throw new Error(`ไม่พบโต๊ะหมายเลข ${orderTableId} ในระบบ`);
         }
-        // พนักงานสามารถสร้างออเดอร์ให้โต๊ะที่จองไว้ได้ (PENDING/CONFIRMED reservation)
-        // แต่ถ้าโต๊ะมีสถานะ OCCUPIED อยู่แล้ว (มีคนนั่งแล้ว) ไม่ควรสร้างออเดอร์ซ้ำ
-        if (table.status === 'OCCUPIED') {
-          throw new Error(`โต๊ะหมายเลข ${orderTableId} ไม่ว่าง (มีลูกค้านั่งอยู่แล้ว)`);
-        }
-        // อัปเดตสถานะโต๊ะเป็น "ไม่ว่าง" ทันที
-        await tx.table.update({
-          where: { id: orderTableId },
-          data: { status: 'OCCUPIED' }, // ล็อคโต๊ะ
-        });
+        
+        // ✅ [LOGIC สำคัญ] ถ้าโต๊ะเป็น AVAILABLE ให้ล็อคสถานะเป็น OCCUPIED
+        if (table.status === 'AVAILABLE') { 
+            await tx.table.update({
+              where: { id: orderTableId },
+              data: { status: 'OCCUPIED' }, // ล็อคโต๊ะ
+            });
+        } 
+        // ❌ ถ้าเป็น OCCUPIED อยู่แล้ว เราอนุญาตให้สร้าง Order เพิ่มได้ (สั่งเพิ่ม)
       }
       
       // 3.2 อัปโหลดสลิปไปที่ Cloudinary (ถ้ามี)
       if (paymentSlipBase64) {
+        // ⚠️ ต้องมี cloudinary config ที่ด้านบนของไฟล์
         const uploadResult = await cloudinary.uploader.upload(paymentSlipBase64, {
           folder: 'payment_slips',
           resource_type: 'auto',
         });
         paymentSlipUrl = uploadResult.secure_url;
-      } else {
-        // ถ้าไม่ส่งสลิปมา (เช่น จ่ายสด) ให้ถือว่าต้องรอ Admin ยืนยันการจ่ายเงิน
-        // (เว้นแต่จะเพิ่ม Logic ใหม่ว่า Employee กดรับเงินสดเอง)
       }
 
-      // 3.3 ตรวจสอบสต็อกสินค้า (แบบมีประสิทธิภาพ)
+      // 3.3 ตรวจสอบสต็อกสินค้า
       const productIds = cart.map(p => p.id);
       const productsInStock = await tx.product.findMany({
         where: { id: { in: productIds } },
@@ -69,8 +70,11 @@ exports.saveOrderByEmployee = async (req, res) => {
 
       for (const item of cart) {
         const product = productMap.get(item.id);
+        
+        // ตรวจสอบสต็อก
         if (!product || item.count > product.quantity) {
-          throw new Error(`ขออภัย. สินค้า "${product?.title || 'บางรายการ'}" หมดสต็อก`);
+          // ✅ [แก้ไข] ใช้ "ที่"
+          throw new Error(`ขออภัย. สินค้า "${product?.title || 'บางรายการ'}" มีในสต็อกเพียง ${product.quantity} ที่`); 
         }
         
         const currentPrice = product.price; // ใช้ราคาจาก DB
@@ -80,7 +84,7 @@ exports.saveOrderByEmployee = async (req, res) => {
           productId: item.id,
           count: item.count || 1,
           price: currentPrice,
-          note: item.note || null
+          note: item.note || null // ✅ [เพิ่ม] บันทึก note
         });
       }
 
@@ -90,10 +94,10 @@ exports.saveOrderByEmployee = async (req, res) => {
           products: { create: orderItemsData },
           orderedById: userId, 
           cartTotal: calculatedCartTotal,
-          orderStatus: 'PENDING_CONFIRMATION', // สถานะเริ่มต้น รอ Admin ตรวจสอบสลิป/เงินสด
-          paymentSlipUrl: paymentSlipUrl,      // URL ของสลิป (อาจจะเป็น null ถ้าจ่ายสด)
-          tableId: orderTableId,               // ID โต๊ะที่จอง
-          deliveryMethod: tableId ? 'TABLE' : 'DELIVERY' // [ปรับปรุง] กำหนด deliveryMethod
+          orderStatus: 'PENDING_CONFIRMATION', 
+          paymentSlipUrl: paymentSlipUrl,
+          tableId: orderTableId,
+          deliveryMethod: deliveryMethod, // บันทึกวิธีรับของ
         },
         include: {
           table: true,
@@ -125,7 +129,7 @@ exports.saveOrderByEmployee = async (req, res) => {
       return res.status(400).json({ ok: false, message: err.message });
     }
     
-    // จัดการ Error P2003 (Foreign Key) ถ้า tableId ไม่มีอยู่จริง
+    // จัดการ Error P2003 (Foreign Key)
     if (err.code === 'P2003') {
         return res.status(400).json({ message: "ข้อมูลอ้างอิงไม่ถูกต้อง (เช่น โต๊ะหรือสินค้าไม่มีอยู่จริง)" });
     }
@@ -146,6 +150,7 @@ exports.getEmployeeOrders = async (req, res) => {
             where: { orderedById: userId },
             orderBy: { createdAt: 'desc' },
             include: {
+                table: true,
                 products: {
                     include: {
                         product: {
