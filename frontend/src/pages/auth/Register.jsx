@@ -84,7 +84,7 @@ const Register = () => {
     }
 
     try {
-      await axios.post("https://tohthaibackend.vercel.app/api/register", data);
+      await axios.post("https://tohthaiback.vercel.app/api/register", data);
       toast.success("🎉 สมัครสมาชิกสำเร็จ! กำลังนำคุณไปยังหน้าเข้าสู่ระบบ...");
       setTimeout(() => {
         navigate('/login');

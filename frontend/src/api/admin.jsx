@@ -1,14 +1,14 @@
 import axios from "axios"
 
 export const getOrdersAdmin = async (token) => {
-    return await axios.get('https://tohthaibackend.vercel.app/api/admin/orders', {
+    return await axios.get('https://tohthaiback.vercel.app/api/admin/orders', {
         headers: {
             Authorization: `Bearer ${token}`
         }
     })
 }
 export const getListAllUser = async (token) => {
-    return await axios.get('https://tohthaibackend.vercel.app/api/users', {
+    return await axios.get('https://tohthaiback.vercel.app/api/users', {
         headers: {
             Authorization: `Bearer ${token}`
         }
@@ -16,7 +16,7 @@ export const getListAllUser = async (token) => {
 }
 export const changeUserStatus = async (token, data) => {
   return await axios.put(
-    "https://tohthaibackend.vercel.app/api/change-status",
+    "https://tohthaiback.vercel.app/api/change-status",
     data, 
     {
       headers: {
@@ -27,7 +27,7 @@ export const changeUserStatus = async (token, data) => {
 };
 export const changeUserRole = async (token, data) => {
   return await axios.put(
-    `https://tohthaibackend.vercel.app/api/change-role`,
+    `https://tohthaiback.vercel.app/api/change-role`,
     data, 
     {
       headers: {
@@ -38,29 +38,29 @@ export const changeUserRole = async (token, data) => {
   );
 };
 export const getAllReservations = async (token) => {
-  return await axios.get('https://tohthaibackend.vercel.app/api/reservations', {
+  return await axios.get('https://tohthaiback.vercel.app/api/reservations', {
     headers: { Authorization: `Bearer ${token}` }
   });
 };
 export const updateReservationStatus = async (token, reservationId, status) => {
   // status = "CONFIRMED" หรือ "CANCELLED"
-  return await axios.put(`https://tohthaibackend.vercel.app/api/reservations/${reservationId}/status`, { status }, {
+  return await axios.put(`https://tohthaiback.vercel.app/api/reservations/${reservationId}/status`, { status }, {
     headers: { Authorization: `Bearer ${token}` }
   });
 };
 export const getDashboardSummaryToday = async (token) => {
-  return await axios.get('https://tohthaibackend.vercel.app/api/dashboard', {
+  return await axios.get('https://tohthaiback.vercel.app/api/dashboard', {
     headers: { Authorization: `Bearer ${token}` }
   });
 };
 export const getOrderTypeStatsToday = async (token) => {
-  return await axios.get('https://tohthaibackend.vercel.app/api/statstoday', {
+  return await axios.get('https://tohthaiback.vercel.app/api/statstoday', {
     headers: { Authorization: `Bearer ${token}` }
   });
 };
 export const getTopSellingProducts = async (token, period = 'week', limit = 5) => {
   // ส่ง period และ limit เป็น query params
-  return await axios.get(`https://tohthaibackend.vercel.app/api/topselling?period=${period}&limit=${limit}`, {
+  return await axios.get(`https://tohthaiback.vercel.app/api/topselling?period=${period}&limit=${limit}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 };
