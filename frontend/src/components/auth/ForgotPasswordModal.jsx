@@ -20,7 +20,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
         try {
             // ✅ API Call ไปยัง Backend
             // URL นี้ต้องตรงกับ Route ที่คุณสร้างไว้ใน Backend
-            const res = await axios.post('https://tohthai.vercel.app//api/forgot-password', { email }); 
+            const res = await axios.post('https://tohthai.vercel.app/api/forgot-password', { email }); 
             
             setMessage({ type: 'success', text: res.data.message || 'ส่งลิงก์ตั้งรหัสผ่านใหม่ไปยังอีเมลของคุณแล้ว' });
             toast.success('กรุณาตรวจสอบอีเมลของคุณ');

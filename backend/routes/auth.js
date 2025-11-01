@@ -9,7 +9,7 @@ const {authCheck, adminCheck} = require('../middlewares/authCheck');
 //auth
 
 router.post('/register', register);
-router.post('/login', login);
+router.post('login', login);
 router.post('/current-user',authCheck, currentUser);
 router.post('/current-admin',authCheck, adminCheck, currentUser);
 router.post('/current-employee',authCheck, currentEmployee, currentUser);

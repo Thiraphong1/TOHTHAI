@@ -37,7 +37,7 @@ const ecomStore = (set, get) => ({
     });
   },
   actionLogin: async (formData) => {
-    const res = await axios.post("https://tohthai.vercel.app//api/login", formData);
+    const res = await axios.post("https://tohthai.vercel.app/api/login", formData);
     set({ user: res.data.payload, token: res.data.token });
     return res;
   },
