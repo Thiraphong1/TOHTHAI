@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
-import useEcomStore from "../../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-// ✅ Import Icons ที่จำเป็นทั้งหมด (รวม Eye, EyeOff)
 import { Mail, Lock, LogIn, LoaderCircle ,Eye, EyeOff } from "lucide-react"; 
-// ✅ Import Modal ลืมรหัสผ่าน
 import ForgotPasswordModal from "../../components/auth/ForgotPasswordModal";
 
 // URL รูปภาพจาก Unsplash
