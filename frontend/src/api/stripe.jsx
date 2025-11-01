@@ -1,7 +1,7 @@
 import axios from "axios"
 
 export const payment =async(token)=> 
-    await axios.post('http://localhost:3000/api/user/create-checkout-session',
+    await axios.post('https://tohthaibackend.vercel.app/api/user/create-checkout-session',
     {},{
         headers: {
             Authorization: `Bearer ${token}`

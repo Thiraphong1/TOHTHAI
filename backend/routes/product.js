@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { create,update, remove, list,  listby,listsall, searchFilters,read,images,removeImage } = require('../controllers/product')
 const { authCheck,adminCheck } = require('../middlewares/authCheck')
-// endpoints http://localhost:3000/api/product
+// endpoints https://tohthaibackend.vercel.app/api/product
 router.post('/product',create)
 router.get('/products/:count',list)
 router.get('/products',listsall)
