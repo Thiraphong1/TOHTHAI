@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import useEcomStore from "../../store/EcomStore.jsx"
+import useEcomStore from "./../store/EcomStore.jsx"
 import { LogOut, Soup, ListOrdered } from 'lucide-react';
 
 // Layout หลักสำหรับหน้าของพ่อครัว

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { toast } from "react-toastify";
 import { saveOrder } from "../api/user";
-import useEcomStore from "../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 import { useNavigate } from "react-router-dom";
 
 const CheckoutFrom = () => {

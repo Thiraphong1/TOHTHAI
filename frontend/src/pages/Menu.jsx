@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import ProductCard from "../components/card/ProductCard";
-import useEcomStore from "../store/ecomStore";
+import useEcomStore from "./../store/EcomStore.jsx"
 import SearchCard from "../components/card/SearchCard";
 import CartCard from "../components/card/CartCard";
 
