@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { NavLink, Link } from "react-router-dom";
-import useEcomStore from "../../store/EcomStore.jsx"
+import useEcomStore from "./../store/EcomStore.jsx"
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import {
