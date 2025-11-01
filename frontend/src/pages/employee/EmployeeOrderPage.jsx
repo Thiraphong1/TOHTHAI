@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import { toast } from 'react-toastify';
 import { createOrderByEmployee } from '../../api/employee';
 import CartCard from '../../components/card/CartCard';

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { getAllReservations, updateReservationStatus } from "../../api/admin"; 
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { LoaderCircle, Check, X, Users, CalendarDays, Clock, AlertTriangle } from 'lucide-react'; 

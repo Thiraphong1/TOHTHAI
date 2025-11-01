@@ -13,7 +13,7 @@ import {
   ChevronsRight,
   Armchair, // ✅ 1. Import ไอคอนใหม่เข้ามา
 } from "lucide-react";
-import useEcomStore from "../../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 
 // สร้าง Context
 const SidebarContext = createContext();

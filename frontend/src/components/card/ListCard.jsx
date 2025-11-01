@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import useEcomStore from "../../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 import { CheckCircle, ArrowLeft, Loader2, ShoppingCart, ImageOff, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createUserCart } from "../../api/user";

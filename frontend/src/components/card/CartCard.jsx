@@ -1,7 +1,7 @@
 import React from "react";
 
 import { Trash2, CreditCard, Plus, Minus, ShoppingCart, ImageOff, MessageSquare } from "lucide-react";
-import useEcomStore from "../../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 import { Link } from "react-router-dom";
 
 const CartCard = () => {

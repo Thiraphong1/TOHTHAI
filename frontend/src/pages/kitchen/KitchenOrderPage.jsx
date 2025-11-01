@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getKitchenOrders, updateOrderStatus } from '../../api/kitchen'; 
-import useEcomStore from '../../store/ecomStore'; 
+import useEcomStore from "../../store/EcomStore.jsx" 
 import { toast } from 'react-toastify';
 
 import { LoaderCircle, CheckSquare, ListOrdered, MessageSquare, Utensils } from 'lucide-react';

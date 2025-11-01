@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ✅ [แก้ไข] เปลี่ยนชื่อ API function เป็น listAllTables (ถ้าใช้ชื่อนี้ใน api/table.js)
 import { getAllTables } from '../../api/table'; 
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import { toast } from 'react-toastify';
 import { Armchair, XCircle, CheckCircle, LoaderCircle, ShoppingBag, AlertTriangle, Utensils } from 'lucide-react'; // เพิ่ม Utensils
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 // สมมติว่าสร้าง listAllTables และ updateTableStatus ใน api/table.js แล้ว
 import { getAllTables, updateTableStatus } from '../../api/table'; 
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import { toast } from 'react-toastify';
 import { LoaderCircle, Armchair, ToggleLeft, ToggleRight } from 'lucide-react';
 

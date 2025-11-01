@@ -1,6 +1,6 @@
 import React from "react";
 import { ShoppingCart } from "lucide-react"; // ไอคอนตะกร้าสินค้า
-import useEcomStore from "../../store/ecomStore"; // Global State สำหรับจัดการตะกร้า
+import useEcomStore from "../../store/EcomStore.jsx"
 
 const ProductCard = ({ item }) => {
   const actionAddtoCart = useEcomStore((state) => state.actionAddtoCart);

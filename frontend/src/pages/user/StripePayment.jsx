@@ -3,7 +3,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 
 import { payment } from "../../api/stripe";
-import useEcomStore from "../../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 import CheckoutFrom from "../../components/CheckoutFrom";
 
 const stripePromise = loadStripe("pk_test_51SCj31AcH4hYGliPG6F9jr9yUNINhP1Sa70umALP6D0aFM1KMoelKirtAkqRSPZunaLPSgdQQzL3sEfxee37LwRF00ixT9LC5c");

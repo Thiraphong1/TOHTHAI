@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getOrders } from '../../api/user';
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import { format } from 'date-fns';
 
 const HistoryCard = () => {

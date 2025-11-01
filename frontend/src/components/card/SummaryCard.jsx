@@ -15,7 +15,7 @@ import {
   updateUserAddress,
 } from "../../api/user";
 import { getAllTables } from "../../api/table"; // Make sure path is correct
-import useEcomStore from "../../store/ecomStore"; // Make sure path is correct
+import useEcomStore from "../../store/EcomStore.jsx" // Make sure path is correct
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 

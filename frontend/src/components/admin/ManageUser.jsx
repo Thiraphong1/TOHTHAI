@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 // ✅ 1. [แก้ไข] เปลี่ยนชื่อ API function ให้ตรงกับที่สร้างไว้ (getAllUsers)
 import { getListAllUser, changeUserStatus, changeUserRole } from "../../api/admin";
-import useEcomStore from "../../store/ecomStore";
+import useEcomStore from "../../store/EcomStore.jsx"
 import { toast } from "react-toastify"; // อย่าลืม import ToastContainer ที่ App หลัก
 import Swal from "sweetalert2";
 import { UsersRound, ToggleRight, ToggleLeft, ShieldCheck, ShieldAlert, Shield, UserCog, ChefHat, LoaderCircle, AlertTriangle } from "lucide-react"; // เพิ่ม Icons

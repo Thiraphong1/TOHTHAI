@@ -1,6 +1,6 @@
 // ✅ [แก้ไข] แก้ไข Syntax การ import ให้ถูกต้อง
 import React, { useState, useEffect, useCallback } from 'react'; 
-import useEcomStore from '../../store/ecomStore'; // ตรวจสอบ Path
+import useEcomStore from "../../store/EcomStore.jsx" // ตรวจสอบ Path
 import { getDashboardSummaryToday, getOrderTypeStatsToday, getTopSellingProducts } from '../../api/admin'; // ตรวจสอบ Path
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';

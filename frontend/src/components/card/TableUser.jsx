@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAvailableTables, createReservation } from '../../api/reservation'; 
-import useEcomStore from '../../store/ecomStore'; 
+import useEcomStore from "../../store/EcomStore.jsx" 
 import { toast } from 'react-toastify';
 import { Armchair, XCircle, CheckCircle, LoaderCircle, Users, Clock, Square, Utensils, DoorOpen, Toilet, MessageSquare } from 'lucide-react'; 
 

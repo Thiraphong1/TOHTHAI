@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import { toast } from 'react-toastify';
 import { LoaderCircle, PlusCircle, ImageOff } from 'lucide-react';
 

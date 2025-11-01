@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import useEcomStore from '../../store/ecomStore';
+import useEcomStore from "../../store/EcomStore.jsx"
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import { FiSearch } from 'react-icons/fi';

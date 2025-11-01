@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 // ตรวจสอบ Path: ควรมาจาก src/api/admin.js
 import { getOrdersAdmin } from "../../api/admin"; 
-import useEcomStore from "../../store/ecomStore"; 
+import useEcomStore from "../../store/EcomStore.jsx"
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { th } from "date-fns/locale";
 import {

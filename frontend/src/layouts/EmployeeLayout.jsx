@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import useEcomStore from '../store/ecomStore'; // ✅ ตรวจสอบ Path นี้ให้ถูกต้อง (ถ้า store อยู่ที่ src/store)
+import useEcomStore from "./../store/EcomStore.jsx"
 import { LogOut, Armchair, ShoppingBasket } from 'lucide-react';
 
 // นี่คือ Layout หลักสำหรับหน้าของพนักงานทั้งหมด
